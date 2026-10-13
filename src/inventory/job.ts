@@ -34,7 +34,11 @@ export async function executeInventoryRepositoryJob(
 ): Promise<InventoryResult> {
   const payload = inventoryRepositoryJobSchema.parse(rawPayload);
   const adapterInput: ManualRepositoryInput = {
-    repository: payload.repository,
+    repository: {
+      externalId: payload.repository.externalId,
+      canonicalName: payload.repository.canonicalName,
+      ...(payload.repository.defaultBranch ? { defaultBranch: payload.repository.defaultBranch } : {})
+    },
     releases: payload.releases.map((release) => ({
       sourceKind: release.sourceKind,
       sourceName: release.sourceName,
