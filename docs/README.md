@@ -13,16 +13,19 @@ This directory contains the canonical product, architecture, security and delive
 - [`ROADMAP.md`](ROADMAP.md) — ordered implementation phases and closure criteria.
 - [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) — project-wide implementation, CI, testing and documentation rules.
 - [`FOUNDATION_V0_1_ACCEPTANCE.md`](FOUNDATION_V0_1_ACCEPTANCE.md) — Phase 1 runtime, CI, worker E2E, dependency-security and ES/EN acceptance evidence.
+- [`PHASE2_INVENTORY.md`](PHASE2_INVENTORY.md) — Product / Repository / Release inventory contract.
+- [`PHASE2_INVENTORY_ACCEPTANCE.md`](PHASE2_INVENTORY_ACCEPTANCE.md) — Phase 2 tenant, idempotency, immutable release identity, worker E2E and CI acceptance evidence.
 
 ## Current delivery state
 
 ```text
 Phase 0 — Documentation / architecture baseline   COMPLETE
-Phase 1 — Foundation v0.1                        ACCEPTED / merge pending
-Phase 2 — Product / Repository / Release         NEXT
+Phase 1 — Foundation v0.1                        COMPLETE / MERGED / MAIN VERIFIED
+Phase 2 — Product / Repository / Release         ACCEPTED / MERGE PENDING
+Phase 3 — GitHub App connector                   NEXT AFTER MAIN VERIFICATION
 ```
 
-Phase 2 must not begin until the Foundation v0.1 merge is verified on `main`.
+Phase 3 must not begin until the Phase 2 merge is verified by green CI on `main`.
 
 ## Documentation authority
 

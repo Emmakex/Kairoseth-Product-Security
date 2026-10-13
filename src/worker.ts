@@ -1,6 +1,8 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import { loadEnv } from './config/env.js';
 import { connectMongo } from './db/mongo.js';
+import { executeInventoryRepositoryJob } from './inventory/job.js';
+import { ensureInventoryIndexes, inventoryCollections } from './inventory/store.js';
 import { createLogger } from './logger.js';
 import { completeJob, failJob, leaseNextJob } from './jobs/lease.js';
 import { ensureJobIndexes, JOBS_COLLECTION } from './jobs/store.js';
@@ -12,7 +14,9 @@ async function main(): Promise<void> {
   const once = process.argv.includes('--once') || env.WORKER_ONCE;
   const { client, db } = await connectMongo(env);
   const collection = db.collection<JobDocument>(JOBS_COLLECTION);
+  const inventory = inventoryCollections(db);
   await ensureJobIndexes(collection);
+  await ensureInventoryIndexes(inventory);
 
   logger.info({ workerId: env.WORKER_ID, once }, 'worker_started');
 
@@ -32,9 +36,21 @@ async function main(): Promise<void> {
       logger.info({ jobId: job._id.toHexString(), type: job.type, organizationId: job.organizationId }, 'job_leased');
 
       try {
-        if (job.type !== 'noop') {
+        if (job.type === 'inventory.repository') {
+          const result = await executeInventoryRepositoryJob(inventory, job.organizationId, job.payload);
+          logger.info(
+            {
+              jobId: job._id.toHexString(),
+              repositoryId: result.repositoryId.toHexString(),
+              releasesObserved: result.releasesObserved,
+              releasesCreated: result.releasesCreated
+            },
+            'repository_inventory_completed'
+          );
+        } else if (job.type !== 'noop') {
           throw new Error(`Unsupported job type: ${String(job.type)}`);
         }
+
         const completed = await completeJob(collection, job, env.WORKER_ID);
         if (!completed) throw new Error('Job lease ownership lost before completion');
         logger.info({ jobId: job._id.toHexString() }, 'job_completed');
