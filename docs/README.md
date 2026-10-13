@@ -12,6 +12,7 @@ This directory contains the canonical product, architecture, security and delive
 - [`SECURITY_BOUNDARIES.md`](SECURITY_BOUNDARIES.md) — trust boundaries, repository handling, credentials, tenant isolation and evidence integrity.
 - [`ROADMAP.md`](ROADMAP.md) — ordered implementation phases and closure criteria.
 - [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) — project-wide implementation, CI, testing and documentation rules.
+- [`FOUNDATION_V0_1_ACCEPTANCE.md`](FOUNDATION_V0_1_ACCEPTANCE.md) — Phase 1 runtime, CI, worker E2E, dependency-security and ES/EN acceptance evidence.
 
 ## Documentation authority
 
@@ -32,6 +33,10 @@ Architecture changes require documentation in the same change set when they alte
 - external connector permissions;
 - AI authority boundaries;
 - infrastructure dependencies.
+
+## Language contract
+
+Customer-facing Product Security features, statuses, errors, notifications and workflows ship in **Spanish and English together**. ES/EN parity is part of acceptance and must not be deferred to a later translation-only phase.
 
 ## External regulatory sources
 
