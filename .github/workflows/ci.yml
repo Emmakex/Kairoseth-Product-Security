@@ -9,6 +9,32 @@ permissions:
   contents: read
 
 jobs:
+  lockfile-bootstrap:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Generate and commit lockfile when missing
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "package-lock.json already present"
+            exit 0
+          fi
+          npm install --package-lock-only --ignore-scripts
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: add reproducible dependency lockfile"
+          git push origin "HEAD:${GITHUB_HEAD_REF}"
+
   validate:
     runs-on: ubuntu-latest
     services:
@@ -24,18 +50,19 @@ jobs:
     env:
       TEST_MONGODB_URI: mongodb://127.0.0.1:27017
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: npm install --ignore-scripts
-      - name: Upload generated lockfile candidate
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-lock-candidate
-          path: package-lock.json
-          if-no-files-found: error
-          retention-days: 1
+          cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
+      - name: Install dependencies
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --ignore-scripts
+          else
+            npm install --ignore-scripts
+          fi
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -45,5 +72,5 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: docker build -t kairoseth-product-security:ci .
