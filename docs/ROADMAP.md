@@ -72,7 +72,7 @@ Exit criteria:
 - no secrets committed;
 - MongoDB job lease semantics tested.
 
-Status: **complete / accepted on PR #1 pre-merge gates.**
+Status: **complete / merged / main verified.**
 
 Canonical acceptance: [`FOUNDATION_V0_1_ACCEPTANCE.md`](FOUNDATION_V0_1_ACCEPTANCE.md).
 
@@ -100,7 +100,13 @@ Exit criteria:
 - tenant isolation tests pass;
 - inventory is idempotent.
 
-Status: **next after Foundation v0.1 merge and main verification.**
+Status: **complete / accepted on PR #2 pre-merge gates.**
+
+Canonical contract: [`PHASE2_INVENTORY.md`](PHASE2_INVENTORY.md).
+
+Canonical acceptance: [`PHASE2_INVENTORY_ACCEPTANCE.md`](PHASE2_INVENTORY_ACCEPTANCE.md).
+
+Phase 3 begins only after the Phase 2 merge is verified on `main`.
 
 ---
 
@@ -126,6 +132,8 @@ Exit criteria:
 - revoked installation blocks future access;
 - webhook security tests pass;
 - cross-tenant installation mapping attacks fail.
+
+Status: **next after Phase 2 merge + main verification.**
 
 ---
 
