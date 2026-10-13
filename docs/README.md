@@ -14,6 +14,16 @@ This directory contains the canonical product, architecture, security and delive
 - [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) — project-wide implementation, CI, testing and documentation rules.
 - [`FOUNDATION_V0_1_ACCEPTANCE.md`](FOUNDATION_V0_1_ACCEPTANCE.md) — Phase 1 runtime, CI, worker E2E, dependency-security and ES/EN acceptance evidence.
 
+## Current delivery state
+
+```text
+Phase 0 — Documentation / architecture baseline   COMPLETE
+Phase 1 — Foundation v0.1                        ACCEPTED / merge pending
+Phase 2 — Product / Repository / Release         NEXT
+```
+
+Phase 2 must not begin until the Foundation v0.1 merge is verified on `main`.
+
 ## Documentation authority
 
 When implementation and documentation disagree, the discrepancy must be resolved explicitly. Security, authorization, evidence integrity, regulatory-deadline and source-retention behavior must never be silently changed in code.
