@@ -20,26 +20,26 @@ export interface ManualRepositoryInput {
 export class ManualRepositoryAdapter implements RepositoryAdapter<ManualRepositoryInput> {
   readonly provider = 'manual' as const;
 
-  async inspectRepository(input: ManualRepositoryInput): Promise<RepositorySnapshot> {
+  inspectRepository(input: ManualRepositoryInput): Promise<RepositorySnapshot> {
     const externalId = normalizeStableKey(input.repository.externalId, 'externalId');
     const canonicalName = normalizeStableKey(input.repository.canonicalName, 'canonicalName');
     const defaultBranch = input.repository.defaultBranch?.trim();
 
-    return {
+    return Promise.resolve({
       provider: this.provider,
       externalId,
       canonicalName,
       ...(defaultBranch ? { defaultBranch } : {})
-    };
+    });
   }
 
-  async listReleases(input: ManualRepositoryInput): Promise<readonly ReleaseSnapshot[]> {
-    return input.releases.map((release) => ({
+  listReleases(input: ManualRepositoryInput): Promise<readonly ReleaseSnapshot[]> {
+    return Promise.resolve(input.releases.map((release) => ({
       sourceKind: release.sourceKind,
       sourceName: normalizeStableKey(release.sourceName, 'sourceName'),
       commitSha: normalizeCommitSha(release.commitSha),
       ...(release.version?.trim() ? { version: release.version.trim() } : {}),
       ...(release.publishedAt ? { publishedAt: release.publishedAt } : {})
-    }));
+    })));
   }
 }
