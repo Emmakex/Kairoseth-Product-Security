@@ -96,7 +96,7 @@ Canonical external sources:
 5. **AI is not the authority boundary.** Models may analyze, explain and draft; they do not grant permissions, establish legal obligations on their own or submit reports without explicit authorization.
 6. **Deterministic regulatory core.** CRA applicability, deadlines and workflow transitions are represented by versioned rules and source provenance.
 7. **Tenant isolation everywhere.** Every customer-owned object is scoped to an organization and, where applicable, a Kairoseth product entitlement.
-8. **ES and EN ship together** for customer-facing functionality.
+8. **ES and EN ship together** for customer-facing functionality. Statuses, errors, notifications, incident/deadline language, remediation guidance and reporting-review copy are not accepted in only one language.
 9. **Minimum sufficient infrastructure.** Start with the shared Kairoseth stack plus an isolated Product Security worker.
 10. **Finish before advancing.** Each phase closes implementation, tests, security gates, acceptance evidence and documentation before the next dependency begins.
 
@@ -138,9 +138,16 @@ Core documents:
 - [`docs/SECURITY_BOUNDARIES.md`](docs/SECURITY_BOUNDARIES.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md)
+- [`docs/FOUNDATION_V0_1_ACCEPTANCE.md`](docs/FOUNDATION_V0_1_ACCEPTANCE.md)
 
 ## Status
 
-**Stage: documentation / architecture baseline.**
+```text
+Phase 0 — Documentation / architecture baseline   COMPLETE
+Phase 1 — Foundation v0.1                        ACCEPTED / merge pending
+Phase 2 — Product / Repository / Release         NEXT
+```
 
-No production implementation should precede agreement with these contracts. Changes that alter trust boundaries, data retention, authorization, evidence integrity or regulatory workflow semantics require an explicit architecture/documentation update.
+Foundation v0.1 passed reproducible install, lint, typecheck, 5 tests including real worker no-op E2E, build, full dependency audit, production dependency audit and Docker build with zero known npm vulnerabilities at acceptance.
+
+No later phase may weaken the documented trust boundaries, data-retention rules, authorization model, ES/EN contract, evidence integrity or regulatory workflow semantics without an explicit architecture/documentation update.

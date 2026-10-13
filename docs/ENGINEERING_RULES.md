@@ -200,9 +200,23 @@ Repository-analysis jobs enforce limits for:
 
 ## 18. ES and EN ship together
 
-Customer-facing features, status names, errors and major documentation surfaces should support Spanish and English in the Kairoseth Platform integration.
+Every customer-facing Product Security feature ships in Spanish and English in the same change set.
 
-Internal engineering docs may use English as the canonical technical language.
+This includes, where applicable:
+
+- public/product surfaces;
+- workspace labels and navigation;
+- statuses and state descriptions;
+- validation and error messages;
+- notifications and emails;
+- incident/deadline language;
+- remediation guidance;
+- reporting-package review copy;
+- customer-facing generated documents.
+
+ES/EN parity is an acceptance criterion and must not be deferred to a translation-only follow-up phase.
+
+Internal engineering documentation may use English as the canonical technical language. Internal identifiers, database fields and machine logs should remain locale-neutral where appropriate.
 
 ## 19. Feature branch → PR → CI → merge
 

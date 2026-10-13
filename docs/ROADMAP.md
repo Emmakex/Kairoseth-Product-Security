@@ -33,7 +33,7 @@ Exit criteria:
 - CRA rule authority documented;
 - worker isolation model documented.
 
-Status: **in progress until all canonical docs are present and reviewed.**
+Status: **complete / accepted.**
 
 ---
 
@@ -72,6 +72,10 @@ Exit criteria:
 - no secrets committed;
 - MongoDB job lease semantics tested.
 
+Status: **complete / accepted on PR #1 pre-merge gates.**
+
+Canonical acceptance: [`FOUNDATION_V0_1_ACCEPTANCE.md`](FOUNDATION_V0_1_ACCEPTANCE.md).
+
 ---
 
 ## Phase 2 — Product / Repository / Release Inventory
@@ -95,6 +99,8 @@ Exit criteria:
 - releases resolve to immutable commit identities;
 - tenant isolation tests pass;
 - inventory is idempotent.
+
+Status: **next after Foundation v0.1 merge and main verification.**
 
 ---
 
