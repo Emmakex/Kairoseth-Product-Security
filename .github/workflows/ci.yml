@@ -9,32 +9,6 @@ permissions:
   contents: read
 
 jobs:
-  lockfile-bootstrap:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ github.head_ref }}
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-      - name: Generate and commit lockfile when missing
-        shell: bash
-        run: |
-          if [ -f package-lock.json ]; then
-            echo "package-lock.json already present"
-            exit 0
-          fi
-          npm install --package-lock-only --ignore-scripts
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "chore: add reproducible dependency lockfile"
-          git push origin "HEAD:${GITHUB_HEAD_REF}"
-
   validate:
     runs-on: ubuntu-latest
     services:
@@ -54,19 +28,13 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
-      - name: Install dependencies
-        shell: bash
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci --ignore-scripts
-          else
-            npm install --ignore-scripts
-          fi
+          cache: npm
+      - run: npm ci --ignore-scripts
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npm audit --audit-level=high
       - run: npm run audit:prod
 
   docker:
