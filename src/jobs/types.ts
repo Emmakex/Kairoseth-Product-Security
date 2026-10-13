@@ -1,6 +1,6 @@
 import type { ObjectId } from 'mongodb';
 
-export const JOB_TYPES = ['noop'] as const;
+export const JOB_TYPES = ['noop', 'inventory.repository'] as const;
 export type JobType = (typeof JOB_TYPES)[number];
 export type JobStatus = 'queued' | 'leased' | 'completed' | 'failed';
 
