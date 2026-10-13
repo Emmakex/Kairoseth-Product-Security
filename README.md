@@ -139,15 +139,20 @@ Core documents:
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md)
 - [`docs/FOUNDATION_V0_1_ACCEPTANCE.md`](docs/FOUNDATION_V0_1_ACCEPTANCE.md)
+- [`docs/PHASE2_INVENTORY.md`](docs/PHASE2_INVENTORY.md)
+- [`docs/PHASE2_INVENTORY_ACCEPTANCE.md`](docs/PHASE2_INVENTORY_ACCEPTANCE.md)
 
 ## Status
 
 ```text
 Phase 0 — Documentation / architecture baseline   COMPLETE
-Phase 1 — Foundation v0.1                        ACCEPTED / merge pending
-Phase 2 — Product / Repository / Release         NEXT
+Phase 1 — Foundation v0.1                        COMPLETE / MERGED / MAIN VERIFIED
+Phase 2 — Product / Repository / Release         ACCEPTED / MERGE PENDING
+Phase 3 — GitHub App connector                   NEXT AFTER MAIN VERIFICATION
 ```
 
-Foundation v0.1 passed reproducible install, lint, typecheck, 5 tests including real worker no-op E2E, build, full dependency audit, production dependency audit and Docker build with zero known npm vulnerabilities at acceptance.
+Foundation v0.1 is merged and verified on `main`.
+
+Phase 2 acceptance proves tenant-safe Product / Repository / Release inventory, full immutable commit identities, idempotent repeated inventory, historical preservation when tags move, real worker execution, 9/9 tests, zero known npm vulnerabilities and a successful Docker build.
 
 No later phase may weaken the documented trust boundaries, data-retention rules, authorization model, ES/EN contract, evidence integrity or regulatory workflow semantics without an explicit architecture/documentation update.
