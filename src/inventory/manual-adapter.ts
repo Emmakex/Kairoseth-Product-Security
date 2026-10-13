@@ -8,7 +8,7 @@ export interface ManualRepositoryInput {
     canonicalName: string;
     defaultBranch?: string;
   };
-  releases: readonly Array<{
+  releases: ReadonlyArray<{
     sourceKind: 'tag' | 'commit' | 'manual';
     sourceName: string;
     commitSha: string;
