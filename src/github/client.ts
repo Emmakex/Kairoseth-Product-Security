@@ -3,6 +3,7 @@ import { createGitHubAppJwt } from './crypto.js';
 import type { GitHubInstallationToken, GitHubRepositoryDescriptor } from './types.js';
 
 export type GitHubFetch = (input: string | URL, init?: RequestInit) => Promise<Response>;
+type GitHubHeaders = Record<string, string>;
 
 const tokenResponseSchema = z.object({
   token: z.string().min(1),
@@ -25,6 +26,10 @@ export interface GitHubTagDescriptor {
   commitSha: string;
 }
 
+async function readJson(response: Response): Promise<unknown> {
+  return response.json() as Promise<unknown>;
+}
+
 export class GitHubAppClient {
   private readonly fetchImpl: GitHubFetch;
   private readonly apiBaseUrl: string;
@@ -40,7 +45,7 @@ export class GitHubAppClient {
     this.apiBaseUrl = (config.apiBaseUrl ?? 'https://api.github.com').replace(/\/$/, '');
   }
 
-  private headers(authorization: string): HeadersInit {
+  private headers(authorization: string): GitHubHeaders {
     return {
       Accept: 'application/vnd.github+json',
       Authorization: authorization,
@@ -82,7 +87,7 @@ export class GitHubAppClient {
       throw new Error(`GitHub installation token request failed with HTTP ${response.status}`);
     }
 
-    const payload = tokenResponseSchema.parse(await response.json());
+    const payload = tokenResponseSchema.parse(await readJson(response));
     return { token: payload.token, expiresAt: new Date(payload.expires_at) };
   }
 
@@ -92,7 +97,7 @@ export class GitHubAppClient {
     });
     if (!response.ok) throw new Error(`GitHub repository lookup failed with HTTP ${response.status}`);
 
-    const payload = repositorySchema.parse(await response.json());
+    const payload = repositorySchema.parse(await readJson(response));
     return {
       repositoryId: payload.id,
       fullName: payload.full_name,
@@ -112,7 +117,7 @@ export class GitHubAppClient {
       );
       if (!response.ok) throw new Error(`GitHub tag listing failed with HTTP ${response.status}`);
 
-      const payload = z.array(tagSchema).parse(await response.json());
+      const payload = z.array(tagSchema).parse(await readJson(response));
       for (const tag of payload) tags.push({ name: tag.name, commitSha: tag.commit.sha.toLowerCase() });
       if (payload.length < 100) break;
       if (page === 10) throw new Error('GitHub tag inventory exceeded the bounded 1000-tag Phase 3 limit');
