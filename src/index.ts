@@ -42,14 +42,29 @@ export type {
 export { GitHubRepositoryAdapter } from './github/adapter.js';
 export type { GitHubRepositoryInput } from './github/adapter.js';
 export { GitHubAppClient } from './github/client.js';
-export type { GitHubFetch, GitHubTagDescriptor } from './github/client.js';
+export type {
+  GitHubFetch,
+  GitHubInstallationDescriptor,
+  GitHubTagDescriptor
+} from './github/client.js';
 export { createGitHubAppJwt, verifyGitHubWebhookSignature } from './github/crypto.js';
 export {
+  buildGitHubInstallationUrl,
+  completeGitHubInstallSetup,
+  issueGitHubInstallSetup
+} from './github/lifecycle.js';
+export type { GitHubInstallSetupTicket } from './github/lifecycle.js';
+export {
+  consumeGitHubInstallSetup,
+  createGitHubInstallSetup,
   ensureGitHubIndexes,
   getActiveGitHubInstallation,
   getActiveGitHubInstallationByProviderId,
+  getGitHubWebhookDelivery,
+  getPendingGitHubInstallSetup,
   githubCollections,
   GITHUB_INSTALLATIONS_COLLECTION,
+  GITHUB_INSTALL_SETUPS_COLLECTION,
   GITHUB_WEBHOOK_DELIVERIES_COLLECTION,
   recordGitHubWebhookDelivery,
   registerGitHubInstallation,
@@ -61,6 +76,7 @@ export type {
   GitHubInstallationDocument,
   GitHubInstallationStatus,
   GitHubInstallationToken,
+  GitHubInstallSetupDocument,
   GitHubRepositoryDescriptor,
   GitHubSelectedRepository,
   GitHubWebhookDeliveryDocument
