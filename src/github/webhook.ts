@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { verifyGitHubWebhookSignature } from './crypto.js';
 import {
@@ -8,7 +9,7 @@ import {
   setGitHubSelectedRepositories,
   type GitHubCollections
 } from './store.js';
-import type { GitHubSelectedRepository } from './types.js';
+import type { GitHubSelectedRepository, GitHubWebhookDeliveryDocument } from './types.js';
 
 const repositorySchema = z.object({
   id: z.number().int().positive(),
@@ -39,6 +40,20 @@ function normalizeRepositories(repositories: readonly { id: number; full_name: s
   }));
 }
 
+function hashBody(body: string | Buffer): string {
+  return createHash('sha256').update(body).digest('hex');
+}
+
+function assertMatchingReplay(
+  delivery: GitHubWebhookDeliveryDocument,
+  event: string,
+  payloadSha256: string
+): void {
+  if (delivery.event !== event || delivery.payloadSha256 !== payloadSha256) {
+    throw new Error('GitHub webhook delivery ID was reused with conflicting event or payload');
+  }
+}
+
 export async function processGitHubWebhook(input: {
   collections: GitHubCollections;
   webhookSecret: string;
@@ -58,8 +73,10 @@ export async function processGitHubWebhook(input: {
 
   const deliveryId = normalizeHeader(input.deliveryId, 'X-GitHub-Delivery');
   const event = normalizeHeader(input.event, 'X-GitHub-Event');
+  const payloadSha256 = hashBody(input.body);
   const duplicate = await getGitHubWebhookDelivery(input.collections.deliveries, deliveryId);
   if (duplicate) {
+    assertMatchingReplay(duplicate, event, payloadSha256);
     return {
       status: 'duplicate',
       organizationId: duplicate.organizationId,
@@ -81,6 +98,7 @@ export async function processGitHubWebhook(input: {
   const recorded = await recordGitHubWebhookDelivery(input.collections.deliveries, {
     deliveryId,
     event,
+    payloadSha256,
     installationId,
     organizationId: installation.organizationId,
     receivedAt: now,
@@ -90,6 +108,7 @@ export async function processGitHubWebhook(input: {
   if (!recorded) {
     const concurrentDuplicate = await getGitHubWebhookDelivery(input.collections.deliveries, deliveryId);
     if (!concurrentDuplicate) throw new Error('GitHub webhook delivery deduplication failed');
+    assertMatchingReplay(concurrentDuplicate, event, payloadSha256);
     return {
       status: 'duplicate',
       organizationId: concurrentDuplicate.organizationId,
