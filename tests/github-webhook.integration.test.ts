@@ -91,7 +91,7 @@ suite('GitHub webhooks', () => {
     expect(await collections.deliveries.countDocuments()).toBe(0);
   });
 
-  it('revokes suspended installations and rejects subsequent webhook use', async () => {
+  it('revokes suspended installations, accepts exact signed replays as duplicates and rejects new use', async () => {
     const collections = githubCollections(client.db(dbName));
     const body = JSON.stringify({ action: 'suspend', installation: { id: 3003 } });
 
@@ -105,6 +105,16 @@ suite('GitHub webhooks', () => {
     });
     expect(result.status).toBe('accepted');
     expect(await getActiveGitHubInstallation(collections.installations, 'org-webhook', 3003)).toBeNull();
+
+    const replay = await processGitHubWebhook({
+      collections,
+      webhookSecret: secret,
+      body,
+      signature: signature(body),
+      deliveryId: 'delivery-suspend',
+      event: 'installation'
+    });
+    expect(replay.status).toBe('duplicate');
 
     const laterBody = JSON.stringify({ installation: { id: 3003 } });
     await expect(processGitHubWebhook({
