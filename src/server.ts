@@ -64,7 +64,7 @@ async function main(): Promise<void> {
     apiBaseUrl: githubEnv.apiBaseUrl
   });
 
-  const server = createServer(async (request, response) => {
+  async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const method = request.method ?? 'GET';
     const url = new URL(request.url ?? '/', 'http://product-security.internal');
 
@@ -142,6 +142,10 @@ async function main(): Promise<void> {
       logger.error({ err: error, path: url.pathname }, 'Internal Product Security API request failed');
       sendJson(response, 500, { code: 'internal_error' });
     }
+  }
+
+  const server = createServer((request, response) => {
+    void handleRequest(request, response);
   });
 
   server.listen(apiEnv.port, apiEnv.host, () => {
