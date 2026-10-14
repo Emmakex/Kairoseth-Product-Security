@@ -9,12 +9,14 @@ const secret = 'kairoseth-product-security-service-secret-0123456789';
 const now = new Date('2099-01-01T00:00:00.000Z');
 
 describe('Product Security internal service authentication', () => {
-  it('signs and verifies short-lived organization-scoped claims', () => {
+  it('signs and verifies short-lived organization-scoped GitHub claims', () => {
     const token = signProductSecurityServiceToken({
       secret,
       actorId: 'user-1',
       organizationId: 'org-1',
       scopes: ['github:install'],
+      githubUserId: '991',
+      verifiedGitHubInstallationId: '4321',
       now,
       ttlSeconds: 60,
       jti: '00000000-0000-4000-8000-000000000001'
@@ -31,6 +33,8 @@ describe('Product Security internal service authentication', () => {
     expect(claims.sub).toBe('user-1');
     expect(claims.productSlug).toBe('product-security');
     expect(claims.scopes).toEqual(['github:install']);
+    expect(claims.githubUserId).toBe('991');
+    expect(claims.verifiedGitHubInstallationId).toBe('4321');
   });
 
   it('rejects tampering', () => {
@@ -39,6 +43,7 @@ describe('Product Security internal service authentication', () => {
       actorId: 'user-1',
       organizationId: 'org-1',
       scopes: ['github:install'],
+      githubUserId: '991',
       now
     });
     const [header, payload, signature] = token.split('.');
