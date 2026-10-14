@@ -100,13 +100,11 @@ Exit criteria:
 - tenant isolation tests pass;
 - inventory is idempotent.
 
-Status: **complete / accepted on PR #2 pre-merge gates.**
+Status: **complete / merged / main verified.**
 
 Canonical contract: [`PHASE2_INVENTORY.md`](PHASE2_INVENTORY.md).
 
 Canonical acceptance: [`PHASE2_INVENTORY_ACCEPTANCE.md`](PHASE2_INVENTORY_ACCEPTANCE.md).
-
-Phase 3 begins only after the Phase 2 merge is verified on `main`.
 
 ---
 
@@ -123,17 +121,27 @@ Deliverables:
 - webhook signature verification;
 - delivery deduplication;
 - install/revoke lifecycle;
-- repository selection.
+- repository selection;
+- one-time tenant-bound installation setup state;
+- server-side installation/account verification.
 
 Exit criteria:
 
-- private test repository can be inventoried;
+- private test repository can be inventoried through a registered GitHub App;
+- installer/account identity is verified server-side before tenant binding;
 - no reusable repository token is stored;
 - revoked installation blocks future access;
 - webhook security tests pass;
-- cross-tenant installation mapping attacks fail.
+- cross-tenant installation mapping attacks fail;
+- one-time setup state cannot be replayed;
+- CI, dependency audits and Docker gates pass;
+- customer-facing connector states/errors have an ES/EN mapping contract.
 
-Status: **next after Phase 2 merge + main verification.**
+Status: **in development on PR #3. Deterministic connector implementation is being validated; real registered GitHub App private-repository E2E remains a required external acceptance gate.**
+
+Canonical contract: [`GITHUB_APP_CONNECTOR.md`](GITHUB_APP_CONNECTOR.md).
+
+Phase 4 must not begin until Phase 3 acceptance is complete. A simulated provider test does not substitute for the real private-repository E2E exit criterion.
 
 ---
 
