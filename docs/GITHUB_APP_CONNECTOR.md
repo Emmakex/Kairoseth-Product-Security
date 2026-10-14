@@ -61,6 +61,7 @@ The runtime contract is:
 
 ```text
 GITHUB_APP_ID
+GITHUB_APP_SLUG
 GITHUB_APP_PRIVATE_KEY
 GITHUB_WEBHOOK_SECRET
 GITHUB_API_BASE_URL=https://api.github.com
@@ -68,8 +69,8 @@ GITHUB_API_BASE_URL=https://api.github.com
 
 Rules:
 
-- private key and webhook secret are server-only;
-- real values are never committed;
+- App ID, App slug, private key and webhook secret are server-side configuration;
+- real secret values are never committed;
 - private key is never persisted in MongoDB;
 - installation access tokens are never persisted in MongoDB;
 - credentials are never sent to the browser or model context;
