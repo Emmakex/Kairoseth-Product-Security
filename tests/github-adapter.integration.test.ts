@@ -33,14 +33,17 @@ suite('GitHub repository adapter', () => {
   it('uses a repository-scoped installation token and inventories exact tag commits', async () => {
     const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
     const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
-    const calls: Array<{ url: string; authorization?: string; body?: string }> = [];
+    const calls: Array<{ url: string; authorization?: string; apiVersion?: string; body?: string }> = [];
 
     const fetchImpl: GitHubFetch = (input, init) => {
       const url = String(input);
       const headers = new Headers(init?.headers);
+      const authorization = headers.get('authorization');
+      const apiVersion = headers.get('x-github-api-version');
       calls.push({
         url,
-        ...(headers.get('authorization') ? { authorization: headers.get('authorization') ?? undefined } : {}),
+        ...(authorization ? { authorization } : {}),
+        ...(apiVersion ? { apiVersion } : {}),
         ...(typeof init?.body === 'string' ? { body: init.body } : {})
       });
 
@@ -107,6 +110,7 @@ suite('GitHub repository adapter', () => {
     expect(tokenCalls).toHaveLength(1);
     expect(JSON.parse(tokenCalls[0]?.body ?? '{}')).toEqual({ repository_ids: [801] });
     expect(tokenCalls[0]?.authorization).toMatch(/^Bearer /);
+    expect(tokenCalls[0]?.apiVersion).toBe('2026-03-10');
 
     const repositoryCalls = calls.filter((call) => call.url.endsWith('/repositories/801'));
     const tagCalls = calls.filter((call) => call.url.includes('/tags?'));
