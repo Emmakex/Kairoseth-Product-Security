@@ -5,9 +5,21 @@ import type { GitHubInstallationToken, GitHubRepositoryDescriptor } from './type
 export type GitHubFetch = (input: string | URL, init?: RequestInit) => Promise<Response>;
 type GitHubHeaders = Record<string, string>;
 
+const GITHUB_API_VERSION = '2026-03-10';
+
 const tokenResponseSchema = z.object({
   token: z.string().min(1),
   expires_at: z.iso.datetime()
+});
+
+const installationSchema = z.object({
+  id: z.number().int().positive(),
+  account: z.object({
+    id: z.number().int().positive(),
+    login: z.string().min(1)
+  }),
+  repository_selection: z.enum(['all', 'selected']),
+  suspended_at: z.iso.datetime().nullable().optional()
 });
 
 const repositorySchema = z.object({
@@ -24,6 +36,14 @@ const tagSchema = z.object({
 export interface GitHubTagDescriptor {
   name: string;
   commitSha: string;
+}
+
+export interface GitHubInstallationDescriptor {
+  installationId: number;
+  accountId: number;
+  accountLogin: string;
+  repositorySelection: 'all' | 'selected';
+  suspended: boolean;
 }
 
 async function readJson(response: Response): Promise<unknown> {
@@ -49,8 +69,35 @@ export class GitHubAppClient {
     return {
       Accept: 'application/vnd.github+json',
       Authorization: authorization,
-      'X-GitHub-Api-Version': '2022-11-28',
+      'X-GitHub-Api-Version': GITHUB_API_VERSION,
       'User-Agent': this.config.userAgent ?? 'Kairoseth-Product-Security'
+    };
+  }
+
+  private appAuthorization(): string {
+    return `Bearer ${createGitHubAppJwt({
+      appId: this.config.appId,
+      privateKeyPem: this.config.privateKeyPem
+    })}`;
+  }
+
+  async getInstallation(installationId: number): Promise<GitHubInstallationDescriptor> {
+    if (!Number.isSafeInteger(installationId) || installationId <= 0) {
+      throw new Error('GitHub installationId must be a positive integer');
+    }
+
+    const response = await this.fetchImpl(`${this.apiBaseUrl}/app/installations/${installationId}`, {
+      headers: this.headers(this.appAuthorization())
+    });
+    if (!response.ok) throw new Error(`GitHub installation lookup failed with HTTP ${response.status}`);
+
+    const payload = installationSchema.parse(await readJson(response));
+    return {
+      installationId: payload.id,
+      accountId: payload.account.id,
+      accountLogin: payload.account.login,
+      repositorySelection: payload.repository_selection,
+      suspended: Boolean(payload.suspended_at)
     };
   }
 
@@ -66,17 +113,12 @@ export class GitHubAppClient {
       throw new Error('GitHub repository IDs must be positive integers');
     }
 
-    const appJwt = createGitHubAppJwt({
-      appId: this.config.appId,
-      privateKeyPem: this.config.privateKeyPem
-    });
-
     const response = await this.fetchImpl(
       `${this.apiBaseUrl}/app/installations/${installationId}/access_tokens`,
       {
         method: 'POST',
         headers: {
-          ...this.headers(`Bearer ${appJwt}`),
+          ...this.headers(this.appAuthorization()),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ repository_ids: [...repositoryIds] })
