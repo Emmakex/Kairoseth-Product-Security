@@ -149,6 +149,13 @@ export async function setGitHubSelectedRepositories(
   return installation;
 }
 
+export async function getGitHubWebhookDelivery(
+  collection: Collection<GitHubWebhookDeliveryDocument>,
+  deliveryId: string
+): Promise<WithId<GitHubWebhookDeliveryDocument> | null> {
+  return collection.findOne({ deliveryId });
+}
+
 export async function recordGitHubWebhookDelivery(
   collection: Collection<GitHubWebhookDeliveryDocument>,
   delivery: GitHubWebhookDeliveryDocument
