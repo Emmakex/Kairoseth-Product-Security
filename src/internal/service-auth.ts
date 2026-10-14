@@ -7,6 +7,8 @@ export const KAIROSETH_PLATFORM_ISSUER = 'kairoseth-platform';
 export const serviceScopeSchema = z.enum(['github:install']);
 export type ProductSecurityServiceScope = z.infer<typeof serviceScopeSchema>;
 
+const githubNumericIdSchema = z.string().regex(/^\d+$/).max(32);
+
 const tokenPayloadSchema = z.object({
   iss: z.literal(KAIROSETH_PLATFORM_ISSUER),
   aud: z.literal(PRODUCT_SECURITY_SERVICE_AUDIENCE),
@@ -14,6 +16,8 @@ const tokenPayloadSchema = z.object({
   organizationId: z.string().min(1).max(256),
   productSlug: z.literal('product-security'),
   scopes: z.array(serviceScopeSchema).min(1).max(16),
+  githubUserId: githubNumericIdSchema.optional(),
+  verifiedGitHubInstallationId: githubNumericIdSchema.optional(),
   iat: z.number().int().nonnegative(),
   exp: z.number().int().positive(),
   jti: z.string().uuid()
@@ -66,6 +70,8 @@ export function signProductSecurityServiceToken(input: {
   actorId: string;
   organizationId: string;
   scopes: readonly ProductSecurityServiceScope[];
+  githubUserId?: string;
+  verifiedGitHubInstallationId?: string;
   now?: Date;
   ttlSeconds?: number;
   jti?: string;
@@ -89,6 +95,10 @@ export function signProductSecurityServiceToken(input: {
     organizationId: input.organizationId,
     productSlug: 'product-security',
     scopes: [...new Set(input.scopes)],
+    ...(input.githubUserId ? { githubUserId: input.githubUserId } : {}),
+    ...(input.verifiedGitHubInstallationId
+      ? { verifiedGitHubInstallationId: input.verifiedGitHubInstallationId }
+      : {}),
     iat: issuedAt,
     exp: issuedAt + ttlSeconds,
     jti: input.jti ?? randomUUID()
