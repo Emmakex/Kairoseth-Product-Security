@@ -1,0 +1,40 @@
+services:
+  product-security-api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: kairoseth-product-security:${PRODUCT_SECURITY_IMAGE_TAG:-local}
+    command: ["node", "dist/src/server.js"]
+    restart: unless-stopped
+    env_file:
+      - ../.env.production
+    environment:
+      PRODUCT_SECURITY_API_HOST: 0.0.0.0
+      PRODUCT_SECURITY_API_PORT: 8787
+    ports:
+      - "127.0.0.1:${PRODUCT_SECURITY_HOST_PORT:-8787}:8787"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8787/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  product-security-worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: kairoseth-product-security:${PRODUCT_SECURITY_IMAGE_TAG:-local}
+    command: ["node", "dist/src/worker.js"]
+    restart: unless-stopped
+    env_file:
+      - ../.env.production
+    depends_on:
+      product-security-api:
+        condition: service_healthy

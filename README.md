@@ -97,7 +97,7 @@ Canonical external sources:
 6. **Deterministic regulatory core.** CRA applicability, deadlines and workflow transitions are represented by versioned rules and source provenance.
 7. **Tenant isolation everywhere.** Every customer-owned object is scoped to an organization and, where applicable, a Kairoseth product entitlement.
 8. **ES and EN ship together** for customer-facing functionality. Statuses, errors, notifications, incident/deadline language, remediation guidance and reporting-review copy are not accepted in only one language.
-9. **Minimum sufficient infrastructure.** Start with the shared Kairoseth stack plus an isolated Product Security worker.
+9. **Minimum sufficient infrastructure.** Start with the shared Kairoseth stack plus an isolated Product Security runtime/worker.
 10. **Finish before advancing.** Each phase closes implementation, tests, security gates, acceptance evidence and documentation before the next dependency begins.
 
 ## MVP
@@ -143,6 +143,7 @@ Core documents:
 - [`docs/PHASE2_INVENTORY_ACCEPTANCE.md`](docs/PHASE2_INVENTORY_ACCEPTANCE.md)
 - [`docs/GITHUB_APP_CONNECTOR.md`](docs/GITHUB_APP_CONNECTOR.md)
 - [`docs/PHASE3_GITHUB_APP_ACCEPTANCE.md`](docs/PHASE3_GITHUB_APP_ACCEPTANCE.md)
+- [`docs/PHASE3_PRODUCTION_RUNTIME.md`](docs/PHASE3_PRODUCTION_RUNTIME.md)
 
 ## Status
 
@@ -150,7 +151,7 @@ Core documents:
 Phase 0 — Documentation / architecture baseline   COMPLETE
 Phase 1 — Foundation v0.1                        COMPLETE / MERGED / MAIN VERIFIED
 Phase 2 — Product / Repository / Release         COMPLETE / MERGED / MAIN VERIFIED
-Phase 3 — GitHub App connector                   DETERMINISTIC ACCEPTED / REAL E2E PENDING / PR #3
+Phase 3 — GitHub App connector                   MERGED / DETERMINISTIC VERIFIED / REAL E2E PENDING
 Phase 4 — Isolated analysis worker + SBOM        BLOCKED ON PHASE 3 PRODUCTION ACCEPTANCE
 ```
 
@@ -158,6 +159,8 @@ Foundation v0.1 is merged and verified on `main`.
 
 Phase 2 is merged and verified on `main`; its acceptance proves tenant-safe Product / Repository / Release inventory, full immutable commit identities, idempotent repeated inventory, historical preservation when tags move, real worker execution, zero known npm vulnerabilities and a successful Docker build.
 
-Phase 3 deterministic implementation is accepted by CI run #70. It includes tenant-bound one-time installation state, server-side installation/account verification, repository-scoped short-lived installation tokens, signed/deduplicated webhooks, revocation, explicit repository selection, stable ES/EN error-code mapping and provider-neutral inventory integration. Production acceptance still requires the real registered GitHub App private-repository E2E; simulated provider tests do not replace that gate.
+Phase 3 connector implementation is merged to `main` at `7f2be1497e6a8afadaeea50c5f810bf9c7880b78` and its post-merge CI is green. The Kairoseth Platform bridge is merged at `99817fc70933ea4fcaa7596365b99a7d922e20cd`, with deployed Platform production proof/smoke green. Phase 3 includes one-time tenant-bound installation setup, explicit human GitHub identity linking, GitHub Organization-safe installation association, repository-scoped short-lived tokens, signed/deduplicated webhooks, revocation, explicit repository selection, stable ES/EN error-code mapping and provider-neutral inventory integration.
+
+Production Phase 3 is still open. The Product Security API/worker deployment contract is versioned under `deploy/`, and production acceptance still requires the real registered GitHub App private-repository E2E documented in `docs/PHASE3_PRODUCTION_RUNTIME.md`. Simulated provider tests do not replace that gate.
 
 No later phase may weaken the documented trust boundaries, data-retention rules, authorization model, ES/EN contract, evidence integrity or regulatory workflow semantics without an explicit architecture/documentation update.
