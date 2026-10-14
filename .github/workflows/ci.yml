@@ -49,4 +49,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: docker build -t kairoseth-product-security:ci .
+      - name: Validate production compose contract
+        run: |
+          cp .env.example .env.production
+          docker compose -f deploy/docker-compose.production.example.yml config -q
+          rm -f .env.production
+      - name: Build production image
+        run: docker build -t kairoseth-product-security:ci .
+      - name: Verify API and worker production entrypoints
+        run: |
+          docker run --rm --entrypoint sh kairoseth-product-security:ci -c \
+            'test -f /app/dist/src/server.js && test -f /app/dist/src/worker.js'
