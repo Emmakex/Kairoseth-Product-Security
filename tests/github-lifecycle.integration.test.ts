@@ -29,13 +29,13 @@ suite('GitHub installation lifecycle', () => {
     await client.close();
   });
 
-  it('stores only a hash of state and binds the verified GitHub account exactly once', async () => {
+  it('stores only a hash of state and allows a verified user to install on a different organization account', async () => {
     const collections = githubCollections(client.db(dbName));
     const now = CONTROLLED_FUTURE_NOW;
     const ticket = await issueGitHubInstallSetup({
       collections,
       organizationId: 'org-secure',
-      expectedAccountId: 991,
+      expectedInstallerUserId: '991',
       now
     });
 
@@ -47,12 +47,13 @@ suite('GitHub installation lifecycle', () => {
     const stored = await collections.setups.findOne({ organizationId: 'org-secure' });
     expect(stored?.stateHash).toMatch(/^[0-9a-f]{64}$/);
     expect(stored?.stateHash).not.toBe(ticket.state);
+    expect(stored?.expectedInstallerUserId).toBe('991');
 
     const githubClient = {
       getInstallation: (installationId: number) => Promise.resolve({
         installationId,
-        accountId: 991,
-        accountLogin: 'acme-security',
+        accountId: 88001,
+        accountLogin: 'acme-security-org',
         repositorySelection: 'selected' as const,
         suspended: false
       })
@@ -63,10 +64,12 @@ suite('GitHub installation lifecycle', () => {
       client: githubClient,
       state: ticket.state,
       installationId: 4321,
+      verifiedInstallerUserId: '991',
       now: new Date(now.getTime() + 10_000)
     });
     expect(installation.organizationId).toBe('org-secure');
-    expect(installation.accountId).toBe(991);
+    expect(installation.accountId).toBe(88001);
+    expect(installation.accountLogin).toBe('acme-security-org');
     expect(installation.selectedRepositories).toEqual([]);
 
     await expect(completeGitHubInstallSetup({
@@ -74,18 +77,19 @@ suite('GitHub installation lifecycle', () => {
       client: githubClient,
       state: ticket.state,
       installationId: 4321,
+      verifiedInstallerUserId: '991',
       now: new Date(now.getTime() + 20_000)
     })).rejects.toMatchObject({
       code: 'setup_state_invalid'
     });
   });
 
-  it('does not bind an installation for a different GitHub account', async () => {
+  it('does not bind an installation when the verified GitHub user differs from setup identity', async () => {
     const collections = githubCollections(client.db(dbName));
     const ticket = await issueGitHubInstallSetup({
       collections,
       organizationId: 'org-a',
-      expectedAccountId: 123,
+      expectedInstallerUserId: '123',
       now: CONTROLLED_FUTURE_NOW
     });
 
@@ -95,13 +99,14 @@ suite('GitHub installation lifecycle', () => {
         getInstallation: (installationId: number) => Promise.resolve({
           installationId,
           accountId: 999,
-          accountLogin: 'other-account',
+          accountLogin: 'organization-account',
           repositorySelection: 'all' as const,
           suspended: false
         })
       },
       state: ticket.state,
       installationId: 555,
+      verifiedInstallerUserId: '456',
       now: new Date(CONTROLLED_FUTURE_NOW.getTime() + 10_000)
     })).rejects.toMatchObject({
       code: 'installation_account_mismatch'
@@ -117,7 +122,7 @@ suite('GitHub installation lifecycle', () => {
     const ticket = await issueGitHubInstallSetup({
       collections,
       organizationId: 'org-expired',
-      expectedAccountId: 321,
+      expectedInstallerUserId: '321',
       now,
       ttlMs: 60_000
     });
@@ -127,14 +132,15 @@ suite('GitHub installation lifecycle', () => {
       client: {
         getInstallation: (installationId: number) => Promise.resolve({
           installationId,
-          accountId: 321,
-          accountLogin: 'expired-account',
+          accountId: 12345,
+          accountLogin: 'expired-org',
           repositorySelection: 'selected' as const,
           suspended: false
         })
       },
       state: ticket.state,
       installationId: 777,
+      verifiedInstallerUserId: '321',
       now: new Date(now.getTime() + 60_001)
     })).rejects.toMatchObject({
       code: 'setup_state_invalid'
