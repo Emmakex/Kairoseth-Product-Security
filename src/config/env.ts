@@ -13,6 +13,9 @@ export const envSchema = z.object({
   WORKER_POLL_MS: z.coerce.number().int().min(100).max(60_000).default(2_000),
   JOB_LEASE_MS: z.coerce.number().int().min(1_000).max(15 * 60_000).default(30_000),
   WORKER_ONCE: booleanFromString.default(false),
+  PRODUCT_SECURITY_SERVICE_SECRET: z.string().min(32).optional(),
+  PRODUCT_SECURITY_API_HOST: z.string().min(1).default('0.0.0.0'),
+  PRODUCT_SECURITY_API_PORT: z.coerce.number().int().min(1).max(65_535).default(8787),
   GITHUB_APP_ID: z.string().min(1).optional(),
   GITHUB_APP_SLUG: z.string().min(1).optional(),
   GITHUB_APP_PRIVATE_KEY: z.string().min(1).optional(),
@@ -28,6 +31,12 @@ export interface GitHubAppEnv {
   privateKeyPem: string;
   webhookSecret: string;
   apiBaseUrl: string;
+}
+
+export interface InternalApiEnv {
+  serviceSecret: string;
+  host: string;
+  port: number;
 }
 
 export function loadEnv(input: NodeJS.ProcessEnv = process.env): AppEnv {
@@ -47,5 +56,16 @@ export function requireGitHubAppEnv(env: AppEnv): GitHubAppEnv {
     privateKeyPem: env.GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, '\n'),
     webhookSecret: env.GITHUB_WEBHOOK_SECRET,
     apiBaseUrl: env.GITHUB_API_BASE_URL
+  };
+}
+
+export function requireInternalApiEnv(env: AppEnv): InternalApiEnv {
+  if (!env.PRODUCT_SECURITY_SERVICE_SECRET) {
+    throw new Error('Internal Product Security API requires PRODUCT_SECURITY_SERVICE_SECRET');
+  }
+  return {
+    serviceSecret: env.PRODUCT_SECURITY_SERVICE_SECRET,
+    host: env.PRODUCT_SECURITY_API_HOST,
+    port: env.PRODUCT_SECURITY_API_PORT
   };
 }
