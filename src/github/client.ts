@@ -29,6 +29,11 @@ const repositorySchema = z.object({
   default_branch: z.string().min(1).nullable().optional()
 });
 
+const installationRepositoriesSchema = z.object({
+  total_count: z.number().int().nonnegative(),
+  repositories: z.array(repositorySchema)
+});
+
 const tagSchema = z.object({
   name: z.string().min(1),
   commit: z.object({ sha: z.string().regex(/^[0-9a-fA-F]{40}$/) })
@@ -90,6 +95,40 @@ export class GitHubAppClient {
     })}`;
   }
 
+  private async requestInstallationToken(
+    installationId: number,
+    repositoryIds?: readonly number[]
+  ): Promise<GitHubInstallationToken> {
+    if (!Number.isSafeInteger(installationId) || installationId <= 0) {
+      throw githubConnectorError('invalid_input', 'GitHub installationId must be a positive integer');
+    }
+    if (repositoryIds?.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
+      throw githubConnectorError('invalid_input', 'GitHub repository IDs must be positive integers');
+    }
+
+    const response = await this.fetchImpl(
+      `${this.apiBaseUrl}/app/installations/${installationId}/access_tokens`,
+      {
+        method: 'POST',
+        headers: {
+          ...this.headers(this.appAuthorization()),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(repositoryIds ? { repository_ids: [...repositoryIds] } : {})
+      }
+    );
+
+    if (!response.ok) {
+      throw githubConnectorError(
+        'provider_http_failure',
+        `GitHub installation token request failed with HTTP ${response.status}`
+      );
+    }
+
+    const payload = parseProviderPayload(tokenResponseSchema, await readJson(response), 'installation token');
+    return { token: payload.token, expiresAt: new Date(payload.expires_at) };
+  }
+
   async getInstallation(installationId: number): Promise<GitHubInstallationDescriptor> {
     if (!Number.isSafeInteger(installationId) || installationId <= 0) {
       throw githubConnectorError('invalid_input', 'GitHub installationId must be a positive integer');
@@ -119,37 +158,61 @@ export class GitHubAppClient {
     installationId: number,
     repositoryIds: readonly number[]
   ): Promise<GitHubInstallationToken> {
-    if (!Number.isSafeInteger(installationId) || installationId <= 0) {
-      throw githubConnectorError('invalid_input', 'GitHub installationId must be a positive integer');
-    }
     if (repositoryIds.length === 0) {
       throw githubConnectorError('invalid_input', 'At least one selected GitHub repository is required');
     }
-    if (repositoryIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
-      throw githubConnectorError('invalid_input', 'GitHub repository IDs must be positive integers');
+    return this.requestInstallationToken(installationId, repositoryIds);
+  }
+
+  /**
+   * Bootstrap-only credential used immediately after a verified installation callback.
+   * GitHub itself limits this token to repositories granted to that installation. It is
+   * used only in memory to discover those repository IDs; all later Product Security
+   * operations return to explicit repository_ids-scoped installation tokens.
+   */
+  async createBootstrapInstallationToken(installationId: number): Promise<GitHubInstallationToken> {
+    return this.requestInstallationToken(installationId);
+  }
+
+  async listInstallationRepositories(token: string): Promise<readonly GitHubRepositoryDescriptor[]> {
+    if (!token.trim()) {
+      throw githubConnectorError('invalid_input', 'GitHub installation token is required');
     }
+    const repositories: GitHubRepositoryDescriptor[] = [];
 
-    const response = await this.fetchImpl(
-      `${this.apiBaseUrl}/app/installations/${installationId}/access_tokens`,
-      {
-        method: 'POST',
-        headers: {
-          ...this.headers(this.appAuthorization()),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ repository_ids: [...repositoryIds] })
-      }
-    );
-
-    if (!response.ok) {
-      throw githubConnectorError(
-        'provider_http_failure',
-        `GitHub installation token request failed with HTTP ${response.status}`
+    for (let page = 1; page <= 10; page += 1) {
+      const response = await this.fetchImpl(
+        `${this.apiBaseUrl}/installation/repositories?per_page=100&page=${page}`,
+        { headers: this.headers(`Bearer ${token}`) }
       );
+      if (!response.ok) {
+        throw githubConnectorError(
+          'provider_http_failure',
+          `GitHub installation repository listing failed with HTTP ${response.status}`
+        );
+      }
+
+      const payload = parseProviderPayload(
+        installationRepositoriesSchema,
+        await readJson(response),
+        'installation repository list'
+      );
+      for (const repository of payload.repositories) {
+        repositories.push({
+          repositoryId: repository.id,
+          fullName: repository.full_name
+        });
+      }
+      if (payload.repositories.length < 100 || repositories.length >= payload.total_count) break;
+      if (page === 10) {
+        throw githubConnectorError(
+          'tag_inventory_bound_exceeded',
+          'GitHub installation repository inventory exceeded the bounded 1000-repository Phase 3 limit'
+        );
+      }
     }
 
-    const payload = parseProviderPayload(tokenResponseSchema, await readJson(response), 'installation token');
-    return { token: payload.token, expiresAt: new Date(payload.expires_at) };
+    return repositories;
   }
 
   async getRepository(token: string, repositoryId: number): Promise<GitHubRepositoryDescriptor & { defaultBranch?: string }> {
