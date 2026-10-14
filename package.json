@@ -13,6 +13,8 @@
     "test:watch": "vitest",
     "worker": "tsx src/worker.ts",
     "worker:once": "tsx src/worker.ts --once",
+    "api": "tsx src/server.ts",
+    "api:prod": "node dist/src/server.js",
     "ci": "npm run lint && npm run typecheck && npm test && npm run build",
     "audit:prod": "npm audit --omit=dev --audit-level=high"
   },
