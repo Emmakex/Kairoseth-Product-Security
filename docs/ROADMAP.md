@@ -137,11 +137,13 @@ Exit criteria:
 - CI, dependency audits and Docker gates pass;
 - customer-facing connector states/errors have an ES/EN mapping contract.
 
-Status: **in development on PR #3. Deterministic connector implementation is being validated; real registered GitHub App private-repository E2E remains a required external acceptance gate.**
+Status: **deterministic implementation accepted on PR #3 / CI run #70; real registered GitHub App private-repository E2E remains the final production gate.**
 
 Canonical contract: [`GITHUB_APP_CONNECTOR.md`](GITHUB_APP_CONNECTOR.md).
 
-Phase 4 must not begin until Phase 3 acceptance is complete. A simulated provider test does not substitute for the real private-repository E2E exit criterion.
+Canonical deterministic acceptance: [`PHASE3_GITHUB_APP_ACCEPTANCE.md`](PHASE3_GITHUB_APP_ACCEPTANCE.md).
+
+Phase 4 must not begin until Phase 3 production acceptance is complete. A simulated provider test does not substitute for the real private-repository E2E exit criterion.
 
 ---
 
