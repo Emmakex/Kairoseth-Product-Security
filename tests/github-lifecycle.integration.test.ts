@@ -48,7 +48,7 @@ suite('GitHub installation lifecycle', () => {
     expect(stored?.stateHash).not.toBe(ticket.state);
 
     const githubClient = {
-      getInstallation: async (installationId: number) => ({
+      getInstallation: (installationId: number) => Promise.resolve({
         installationId,
         accountId: 991,
         accountLogin: 'acme-security',
@@ -88,7 +88,7 @@ suite('GitHub installation lifecycle', () => {
     await expect(completeGitHubInstallSetup({
       collections,
       client: {
-        getInstallation: async (installationId: number) => ({
+        getInstallation: (installationId: number) => Promise.resolve({
           installationId,
           accountId: 999,
           accountLogin: 'other-account',
@@ -118,7 +118,7 @@ suite('GitHub installation lifecycle', () => {
     await expect(completeGitHubInstallSetup({
       collections,
       client: {
-        getInstallation: async (installationId: number) => ({
+        getInstallation: (installationId: number) => Promise.resolve({
           installationId,
           accountId: 321,
           accountLogin: 'expired-account',
