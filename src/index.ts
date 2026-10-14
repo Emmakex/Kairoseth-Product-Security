@@ -1,5 +1,5 @@
-export { envSchema, loadEnv, requireGitHubAppEnv } from './config/env.js';
-export type { AppEnv, GitHubAppEnv } from './config/env.js';
+export { envSchema, loadEnv, requireGitHubAppEnv, requireInternalApiEnv } from './config/env.js';
+export type { AppEnv, GitHubAppEnv, InternalApiEnv } from './config/env.js';
 export { connectMongo } from './db/mongo.js';
 export { createLogger } from './logger.js';
 export { buildLeaseFilter, completeJob, failJob, leaseNextJob } from './jobs/lease.js';
@@ -89,3 +89,25 @@ export type {
 } from './github/types.js';
 export { processGitHubWebhook } from './github/webhook.js';
 export type { GitHubWebhookProcessResult } from './github/webhook.js';
+
+export {
+  completeInternalGitHubInstall,
+  createInternalGitHubInstallSetup
+} from './internal/github-install.js';
+export type {
+  GitHubInstallCompleteResponse,
+  GitHubInstallSetupResponse
+} from './internal/github-install.js';
+export {
+  bearerTokenFromAuthorizationHeader,
+  KAIROSETH_PLATFORM_ISSUER,
+  PRODUCT_SECURITY_SERVICE_AUDIENCE,
+  ProductSecurityServiceAuthError,
+  serviceScopeSchema,
+  signProductSecurityServiceToken,
+  verifyProductSecurityServiceToken
+} from './internal/service-auth.js';
+export type {
+  ProductSecurityServiceClaims,
+  ProductSecurityServiceScope
+} from './internal/service-auth.js';
