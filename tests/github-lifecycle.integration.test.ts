@@ -9,6 +9,7 @@ import { ensureGitHubIndexes, githubCollections } from '../src/github/store.js';
 
 const uri = process.env.TEST_MONGODB_URI;
 const suite = uri ? describe : describe.skip;
+const CONTROLLED_FUTURE_NOW = new Date('2099-01-01T00:00:00.000Z');
 
 suite('GitHub installation lifecycle', () => {
   const client = new MongoClient(uri ?? 'mongodb://localhost:27017');
@@ -30,7 +31,7 @@ suite('GitHub installation lifecycle', () => {
 
   it('stores only a hash of state and binds the verified GitHub account exactly once', async () => {
     const collections = githubCollections(client.db(dbName));
-    const now = new Date('2026-10-14T05:00:00.000Z');
+    const now = CONTROLLED_FUTURE_NOW;
     const ticket = await issueGitHubInstallSetup({
       collections,
       organizationId: 'org-secure',
@@ -84,7 +85,8 @@ suite('GitHub installation lifecycle', () => {
     const ticket = await issueGitHubInstallSetup({
       collections,
       organizationId: 'org-a',
-      expectedAccountId: 123
+      expectedAccountId: 123,
+      now: CONTROLLED_FUTURE_NOW
     });
 
     await expect(completeGitHubInstallSetup({
@@ -99,7 +101,8 @@ suite('GitHub installation lifecycle', () => {
         })
       },
       state: ticket.state,
-      installationId: 555
+      installationId: 555,
+      now: new Date(CONTROLLED_FUTURE_NOW.getTime() + 10_000)
     })).rejects.toMatchObject({
       code: 'installation_account_mismatch'
     });
@@ -110,7 +113,7 @@ suite('GitHub installation lifecycle', () => {
 
   it('rejects expired setup state', async () => {
     const collections = githubCollections(client.db(dbName));
-    const now = new Date('2026-10-14T05:00:00.000Z');
+    const now = CONTROLLED_FUTURE_NOW;
     const ticket = await issueGitHubInstallSetup({
       collections,
       organizationId: 'org-expired',
