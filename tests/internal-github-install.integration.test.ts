@@ -27,25 +27,26 @@ suite('internal GitHub installation bridge', () => {
     await client.close();
   });
 
-  it('binds setup to service claims and bootstraps exact selected repositories', async () => {
+  it('binds setup to the verified GitHub user and accepts an organization installation after Platform verification', async () => {
     const collections = githubCollections(client.db(dbName));
-    const serviceToken = signProductSecurityServiceToken({
+    const setupServiceToken = signProductSecurityServiceToken({
       secret,
       actorId: 'platform-user-1',
       organizationId: 'org-secure',
       scopes: ['github:install'],
+      githubUserId: '991',
       now
     });
-    const claims = verifyProductSecurityServiceToken({
-      token: serviceToken,
+    const setupClaims = verifyProductSecurityServiceToken({
+      token: setupServiceToken,
       secret,
       requiredScope: 'github:install',
       now
     });
 
     const setup = await createInternalGitHubInstallSetup({
-      claims,
-      body: { expectedAccountId: '991' },
+      claims: setupClaims,
+      body: {},
       collections,
       appSlug: 'kairoseth-product-security',
       now
@@ -53,15 +54,31 @@ suite('internal GitHub installation bridge', () => {
     const state = new URL(setup.installUrl).searchParams.get('state');
     expect(state).toBeTruthy();
 
+    const callbackServiceToken = signProductSecurityServiceToken({
+      secret,
+      actorId: 'platform-user-1',
+      organizationId: 'org-secure',
+      scopes: ['github:install'],
+      githubUserId: '991',
+      verifiedGitHubInstallationId: '4321',
+      now: new Date(now.getTime() + 10_000)
+    });
+    const callbackClaims = verifyProductSecurityServiceToken({
+      token: callbackServiceToken,
+      secret,
+      requiredScope: 'github:install',
+      now: new Date(now.getTime() + 10_000)
+    });
+
     const result = await completeInternalGitHubInstall({
-      claims,
+      claims: callbackClaims,
       body: { state, installationId: 4321 },
       collections,
       client: {
         getInstallation: (installationId: number) => Promise.resolve({
           installationId,
-          accountId: 991,
-          accountLogin: 'acme-security',
+          accountId: 88001,
+          accountLogin: 'acme-security-org',
           repositorySelection: 'selected' as const,
           suspended: false
         }),
@@ -80,7 +97,8 @@ suite('internal GitHub installation bridge', () => {
     expect(result).toMatchObject({
       organizationId: 'org-secure',
       installationId: 4321,
-      accountId: 991,
+      accountId: 88001,
+      accountLogin: 'acme-security-org',
       selectedRepositoryCount: 2,
       status: 'active'
     });
@@ -91,5 +109,58 @@ suite('internal GitHub installation bridge', () => {
       { repositoryId: 1001, fullName: 'acme/api' },
       { repositoryId: 1002, fullName: 'acme/web' }
     ]);
+  });
+
+  it('rejects completion when Platform has not verified the callback installation ID', async () => {
+    const collections = githubCollections(client.db(dbName));
+    const setupToken = signProductSecurityServiceToken({
+      secret,
+      actorId: 'platform-user-1',
+      organizationId: 'org-secure',
+      scopes: ['github:install'],
+      githubUserId: '991',
+      now
+    });
+    const setupClaims = verifyProductSecurityServiceToken({
+      token: setupToken,
+      secret,
+      requiredScope: 'github:install',
+      now
+    });
+    const setup = await createInternalGitHubInstallSetup({
+      claims: setupClaims,
+      body: {},
+      collections,
+      appSlug: 'kairoseth-product-security',
+      now
+    });
+    const state = new URL(setup.installUrl).searchParams.get('state');
+
+    const unverifiedToken = signProductSecurityServiceToken({
+      secret,
+      actorId: 'platform-user-1',
+      organizationId: 'org-secure',
+      scopes: ['github:install'],
+      githubUserId: '991',
+      now: new Date(now.getTime() + 10_000)
+    });
+    const unverifiedClaims = verifyProductSecurityServiceToken({
+      token: unverifiedToken,
+      secret,
+      requiredScope: 'github:install',
+      now: new Date(now.getTime() + 10_000)
+    });
+
+    await expect(completeInternalGitHubInstall({
+      claims: unverifiedClaims,
+      body: { state, installationId: 4321 },
+      collections,
+      client: {
+        getInstallation: () => Promise.reject(new Error('must not reach GitHub App lookup')),
+        createBootstrapInstallationToken: () => Promise.reject(new Error('must not mint token')),
+        listInstallationRepositories: () => Promise.reject(new Error('must not list repositories'))
+      },
+      now: new Date(now.getTime() + 10_000)
+    })).rejects.toThrow('do not verify this GitHub installation');
   });
 });
