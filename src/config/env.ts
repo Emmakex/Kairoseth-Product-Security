@@ -14,6 +14,7 @@ export const envSchema = z.object({
   JOB_LEASE_MS: z.coerce.number().int().min(1_000).max(15 * 60_000).default(30_000),
   WORKER_ONCE: booleanFromString.default(false),
   GITHUB_APP_ID: z.string().min(1).optional(),
+  GITHUB_APP_SLUG: z.string().min(1).optional(),
   GITHUB_APP_PRIVATE_KEY: z.string().min(1).optional(),
   GITHUB_WEBHOOK_SECRET: z.string().min(16).optional(),
   GITHUB_API_BASE_URL: z.url().default('https://api.github.com')
@@ -23,6 +24,7 @@ export type AppEnv = z.infer<typeof envSchema>;
 
 export interface GitHubAppEnv {
   appId: string;
+  appSlug: string;
   privateKeyPem: string;
   webhookSecret: string;
   apiBaseUrl: string;
@@ -33,12 +35,15 @@ export function loadEnv(input: NodeJS.ProcessEnv = process.env): AppEnv {
 }
 
 export function requireGitHubAppEnv(env: AppEnv): GitHubAppEnv {
-  if (!env.GITHUB_APP_ID || !env.GITHUB_APP_PRIVATE_KEY || !env.GITHUB_WEBHOOK_SECRET) {
-    throw new Error('GitHub App connector requires GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY and GITHUB_WEBHOOK_SECRET');
+  if (!env.GITHUB_APP_ID || !env.GITHUB_APP_SLUG || !env.GITHUB_APP_PRIVATE_KEY || !env.GITHUB_WEBHOOK_SECRET) {
+    throw new Error(
+      'GitHub App connector requires GITHUB_APP_ID, GITHUB_APP_SLUG, GITHUB_APP_PRIVATE_KEY and GITHUB_WEBHOOK_SECRET'
+    );
   }
 
   return {
     appId: env.GITHUB_APP_ID,
+    appSlug: env.GITHUB_APP_SLUG,
     privateKeyPem: env.GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, '\n'),
     webhookSecret: env.GITHUB_WEBHOOK_SECRET,
     apiBaseUrl: env.GITHUB_API_BASE_URL
