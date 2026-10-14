@@ -10,16 +10,18 @@ The connector is a security boundary. It must preserve Kairoseth tenant authoriz
 
 Kairoseth Platform remains authoritative for:
 
-- authenticated user identity;
+- authenticated Kairoseth user identity;
 - `organizationId`;
-- Product Security entitlement;
-- customer RBAC;
-- the server-side proof that the user is allowed to start a GitHub connection for the organization;
-- ES/EN customer-facing installation, error and status copy.
+- Product Security entitlement and product role;
+- explicit linked GitHub human-user identity;
+- server-side proof that the linked GitHub user can access the installation returned by GitHub;
+- customer-facing ES/EN installation, error and status copy.
 
 Kairoseth Product Security owns:
 
+- one-time installation setup state;
 - GitHub App installation mapping;
+- installation target account metadata;
 - repository selection mapping;
 - GitHub App JWT creation;
 - short-lived installation-token acquisition;
@@ -27,7 +29,23 @@ Kairoseth Product Security owns:
 - connector revocation state;
 - provider-neutral repository inventory integration.
 
-A browser-provided `organizationId`, GitHub repository ownership, or GitHub installation membership is never sufficient authorization.
+A browser-provided `organizationId`, GitHub repository ownership, or bare callback `installation_id` is never sufficient authorization.
+
+## GitHub identity model
+
+GitHub human-user identity and GitHub App installation target account are different concepts and must never be conflated.
+
+```text
+Kairoseth user
+  → explicitly linked GitHub human user ID
+
+GitHub App installation
+  → personal GitHub account OR GitHub Organization
+```
+
+For an installation on a GitHub Organization, the installation account ID is the organization's GitHub account ID. It is not expected to equal the human user's GitHub ID.
+
+Platform therefore proves the human installer/manager identity and verifies that this linked GitHub user can access the callback installation. Product Security independently verifies the installation itself through GitHub App authentication.
 
 ## GitHub App configuration baseline
 
@@ -40,13 +58,13 @@ X-GitHub-Api-Version: 2026-03-10
 Accept: application/vnd.github+json
 ```
 
-The connector should request only permissions needed by accepted phases.
+The connector requests only permissions needed by accepted phases.
 
 Phase 3 inventory requires repository metadata plus read access to repository contents/tags. Phase 4 will require read-only Contents permission for bounded Git-over-HTTPS cloning of the exact authorized commit.
 
 Do not request write permissions merely for convenience.
 
-Required webhook lifecycle events for the current connector:
+Required lifecycle webhook inputs for the current connector:
 
 ```text
 installation
@@ -57,9 +75,12 @@ Webhook SSL verification must remain enabled in production.
 
 ## Server-only configuration
 
-The runtime contract is:
+Product Security runtime:
 
 ```text
+PRODUCT_SECURITY_SERVICE_SECRET
+PRODUCT_SECURITY_API_HOST
+PRODUCT_SECURITY_API_PORT
 GITHUB_APP_ID
 GITHUB_APP_SLUG
 GITHUB_APP_PRIVATE_KEY
@@ -67,9 +88,11 @@ GITHUB_WEBHOOK_SECRET
 GITHUB_API_BASE_URL=https://api.github.com
 ```
 
+Kairoseth Platform uses the same `PRODUCT_SECURITY_SERVICE_SECRET` to create very short-lived, scoped service claims after Platform auth/RBAC checks.
+
 Rules:
 
-- App ID, App slug, private key and webhook secret are server-side configuration;
+- App ID, App slug, private key, webhook secret and service secret are server-side configuration;
 - real secret values are never committed;
 - private key is never persisted in MongoDB;
 - installation access tokens are never persisted in MongoDB;
@@ -79,38 +102,63 @@ Rules:
 
 ## Secure installation lifecycle
 
-GitHub's setup redirect is not itself an authorization proof. Product Security therefore does not bind an installation to a tenant merely because a browser supplies an `installation_id`.
+GitHub's setup redirect is not itself an authorization proof. Product Security does not bind an installation to a tenant merely because a browser supplies an `installation_id`.
 
 Canonical flow:
 
 ```text
-1. Platform authenticates the user.
-2. Platform authorizes the user for organizationId + product-security.
-3. Platform obtains/validates the GitHub account identity allowed to perform the connection.
-4. Product Security receives organizationId + server-verified expected GitHub account ID.
-5. Product Security generates 32 random bytes of one-time state.
-6. MongoDB stores only SHA-256(state), organizationId, expectedAccountId and expiry.
-7. Browser is redirected to the GitHub App installation URL with state.
-8. Callback supplies state + installation_id.
-9. Product Security verifies state is unexpired/unconsumed.
-10. Product Security calls GitHub's App-authenticated installation endpoint server-side.
-11. The returned GitHub account ID must equal expectedAccountId.
-12. Suspended installations are rejected.
-13. State is consumed atomically.
-14. Installation is bound to organizationId.
+1. Platform authenticates the Kairoseth user.
+2. Platform authorizes organizationId + product-security and requires an Owner/Admin product role for installation management.
+3. The authenticated user explicitly links a GitHub identity through Better Auth.
+4. Platform obtains the stable linked GitHub human-user ID server-side.
+5. Platform signs a short-lived service claim containing organizationId + githubUserId + github:install scope.
+6. Product Security generates 32 random bytes of one-time state.
+7. MongoDB stores only SHA-256(state), organizationId, expectedInstallerUserId and expiry.
+8. Platform stores a separate short-lived signed HttpOnly redirect context bound to organization slug + SHA-256(state).
+9. Browser is redirected to the GitHub App installation URL with state.
+10. GitHub redirects to Platform's Setup URL with state + installation_id.
+11. Platform verifies its signed redirect context, re-authenticates/re-authorizes the Kairoseth user, and re-resolves the linked GitHub identity.
+12. Platform uses the linked GitHub user's access token to verify that this user can access the returned installation_id.
+13. Only after that proof, Platform signs a short-lived completion claim containing githubUserId + verifiedGitHubInstallationId.
+14. Product Security requires the claim's verifiedGitHubInstallationId to equal the callback body installationId.
+15. Product Security verifies the one-time state and requires expectedInstallerUserId == githubUserId from the signed Platform claim.
+16. Product Security calls GitHub's App-authenticated installation endpoint server-side.
+17. Suspended installations are rejected.
+18. Product Security records the target account ID/login returned by GitHub. That account may be a person or a GitHub Organization and does not need to equal githubUserId.
+19. State is consumed atomically.
+20. Installation is bound to organizationId.
+21. A bootstrap installation token exists only in memory long enough to list the repositories actually granted to that installation.
+22. Those exact repository IDs/names become the durable selected-repository set.
+23. Normal operations return to explicit repository_ids-scoped installation tokens.
 ```
 
 Default setup-state lifetime: 10 minutes.
 
 Allowed implementation range: 1 to 30 minutes.
 
-The raw state value is never stored. The stored hash is not an authentication credential once the one-time flow is consumed.
+The raw Product Security state value is never stored. The stored hash is not an authentication credential once the one-time flow is consumed.
 
-### Platform prerequisite
+## Internal Platform → Product Security service authentication
 
-The `expectedAccountId` must come from a server-verified GitHub identity/authorization flow. It must not be accepted from an untrusted browser field.
+The internal API accepts a short-lived HMAC SHA-256 service token with bounded claims:
 
-A production connector is not accepted until this Platform-side proof is wired and demonstrated end-to-end.
+```text
+iss = kairoseth-platform
+aud = kairoseth-product-security
+sub = authenticated Kairoseth user ID
+organizationId
+productSlug = product-security
+scopes = [github:install]
+githubUserId
+verifiedGitHubInstallationId?  # completion only
+iat
+exp
+jti
+```
+
+Token lifetime cannot exceed 120 seconds. The shared secret must contain at least 32 bytes.
+
+The browser never creates this token and never supplies the authoritative tenant or verified installation claim.
 
 ## Installation mapping
 
@@ -128,6 +176,8 @@ updatedAt
 revokedAt?
 ```
 
+`accountId` / `accountLogin` identify the target GitHub account on which the App is installed. They are not the linked human user's identity proof.
+
 `installationId` is globally unique in Product Security storage. An existing installation cannot be rebound to a different Kairoseth organization.
 
 Repository selection is explicit:
@@ -137,7 +187,7 @@ repositoryId
 fullName
 ```
 
-A repository adapter call must match:
+A normal repository adapter call must match:
 
 ```text
 organizationId
@@ -145,11 +195,11 @@ organizationId
 + selected repositoryId
 ```
 
-before an installation token is requested.
+before a repository-scoped installation token is requested.
 
 ## Short-lived token flow
 
-For an authorized repository operation:
+For a normal authorized repository operation:
 
 ```text
 active tenant-bound installation
@@ -166,9 +216,9 @@ short-lived installation token
 repository/tag API calls
 ```
 
-Installation tokens are cached only in process memory and only while they retain a safety margin before expiry.
+A one-time bootstrap exception exists immediately after a fully verified installation callback. Product Security requests an installation token without `repository_ids` only to discover the repositories GitHub says the customer granted to that installation. That token remains in memory and is not reused for normal inventory jobs.
 
-The cache key includes organization, installation and repository identity. Every adapter operation re-validates the active installation and explicit repository selection before token use, so a revoked installation blocks future operations even if a token had previously been cached.
+Installation tokens are never persisted. Every normal adapter operation re-validates the active installation and explicit repository selection before token use, so a revoked installation blocks future operations.
 
 ## Repository identity
 
@@ -257,16 +307,19 @@ provider_payload_invalid
 tag_inventory_bound_exceeded
 ```
 
+`installation_account_mismatch` is retained as a stable error code for an installer-identity mismatch in the one-time setup flow; it must not be interpreted as requiring the GitHub Organization/account ID to equal the human GitHub user ID.
+
 The English `message` is technical/operator context only. Customer-facing Platform copy maps the stable `code` to Spanish and English and must not expose tokens, private keys, webhook secrets or sensitive provider payloads.
 
 ## ES/EN contract
 
-Phase 3 is primarily engine work, but every customer-visible connector surface is bilingual at first release.
+Every customer-visible connector surface is bilingual at first release.
 
 Examples that require ES/EN parity:
 
 ```text
-Connect GitHub / Conectar GitHub
+Link GitHub identity / Vincular identidad GitHub
+Install GitHub App / Instalar GitHub App
 Connection active / Conexión activa
 Action required / Acción necesaria
 Repository access revoked / Acceso al repositorio revocado
@@ -275,18 +328,22 @@ Repository is no longer selected / El repositorio ya no está seleccionado
 Connection expired or invalid / La conexión ha caducado o no es válida
 ```
 
-Platform translation must consume the stable connector error/status contract and must never depend on parsing English exception text.
+Platform translation consumes stable status/error codes and must never depend on parsing English exception text.
 
 ## Acceptance boundary
 
-Deterministic CI can prove:
+Deterministic CI proves:
 
 - JWT generation;
-- HMAC verification;
+- service-token signing/verification;
+- HMAC webhook verification;
 - tenant-bound installation storage;
 - cross-tenant rebind rejection;
 - one-time setup state;
-- expected-account enforcement;
+- installer-user identity enforcement;
+- Platform-verified installation claim enforcement;
+- GitHub Organization installation support where user ID differs from target account ID;
+- bootstrap selected-repository discovery;
 - repository selection enforcement;
 - repository-scoped token request;
 - token non-persistence;
@@ -300,12 +357,14 @@ Deterministic CI can prove:
 Production Phase 3 closure additionally requires a registered GitHub App and a real authenticated private-repository E2E proving:
 
 ```text
-Platform-authorized user
-→ verified GitHub account identity
-→ install GitHub App
+Kairoseth-authenticated user
+→ product-security RBAC
+→ explicit linked GitHub identity
+→ install GitHub App on personal account or GitHub Organization
+→ verify callback installation through linked user's GitHub access
 → tenant mapping
-→ select private repository
-→ short-lived token
+→ selected private repository bootstrap
+→ repository-scoped short-lived token
 → inventory repository + exact tag SHA
 → revoke/remove access
 → future access rejected
