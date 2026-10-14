@@ -2,6 +2,7 @@ import type { Collection } from 'mongodb';
 import type { RepositoryAdapter } from '../inventory/provider.js';
 import type { ReleaseSnapshot, RepositorySnapshot } from '../inventory/types.js';
 import type { GitHubAppClient } from './client.js';
+import { githubConnectorError } from './errors.js';
 import { getActiveGitHubInstallation } from './store.js';
 import type { GitHubInstallationDocument, GitHubInstallationToken } from './types.js';
 
@@ -26,12 +27,22 @@ export class GitHubRepositoryAdapter implements RepositoryAdapter<GitHubReposito
       input.organizationId,
       input.installationId
     );
-    if (!installation) throw new Error('Active GitHub installation not found for organization');
+    if (!installation) {
+      throw githubConnectorError(
+        'installation_not_active',
+        'Active GitHub installation not found for organization'
+      );
+    }
 
     const selected = installation.selectedRepositories.find(
       (repository) => repository.repositoryId === input.repositoryId
     );
-    if (!selected) throw new Error('GitHub repository is not selected for this installation');
+    if (!selected) {
+      throw githubConnectorError(
+        'repository_not_selected',
+        'GitHub repository is not selected for this installation'
+      );
+    }
     return { installation, selected };
   }
 
@@ -51,7 +62,10 @@ export class GitHubRepositoryAdapter implements RepositoryAdapter<GitHubReposito
     const repository = await this.client.getRepository(token, input.repositoryId);
 
     if (repository.repositoryId !== selected.repositoryId || repository.fullName !== selected.fullName) {
-      throw new Error('GitHub repository identity does not match the authorized installation mapping');
+      throw githubConnectorError(
+        'repository_identity_mismatch',
+        'GitHub repository identity does not match the authorized installation mapping'
+      );
     }
 
     return {
