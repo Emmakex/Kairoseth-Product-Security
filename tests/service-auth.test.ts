@@ -68,7 +68,7 @@ describe('Product Security internal service authentication', () => {
       requiredScope: 'github:install',
       now: new Date(now.getTime() + 20_000),
       clockSkewSeconds: 0
-    })).toMatchObject({ code: 'invalid_service_token' });
+    })).toThrow(ProductSecurityServiceAuthError);
   });
 
   it('requires a high-entropy shared secret', () => {
@@ -78,6 +78,6 @@ describe('Product Security internal service authentication', () => {
       organizationId: 'org-1',
       scopes: ['github:install'],
       now
-    })).toMatchObject({ code: 'invalid_service_token' });
+    })).toThrow(ProductSecurityServiceAuthError);
   });
 });
