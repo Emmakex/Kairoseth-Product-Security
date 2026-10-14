@@ -141,18 +141,22 @@ Core documents:
 - [`docs/FOUNDATION_V0_1_ACCEPTANCE.md`](docs/FOUNDATION_V0_1_ACCEPTANCE.md)
 - [`docs/PHASE2_INVENTORY.md`](docs/PHASE2_INVENTORY.md)
 - [`docs/PHASE2_INVENTORY_ACCEPTANCE.md`](docs/PHASE2_INVENTORY_ACCEPTANCE.md)
+- [`docs/GITHUB_APP_CONNECTOR.md`](docs/GITHUB_APP_CONNECTOR.md)
 
 ## Status
 
 ```text
 Phase 0 — Documentation / architecture baseline   COMPLETE
 Phase 1 — Foundation v0.1                        COMPLETE / MERGED / MAIN VERIFIED
-Phase 2 — Product / Repository / Release         ACCEPTED / MERGE PENDING
-Phase 3 — GitHub App connector                   NEXT AFTER MAIN VERIFICATION
+Phase 2 — Product / Repository / Release         COMPLETE / MERGED / MAIN VERIFIED
+Phase 3 — GitHub App connector                   IN DEVELOPMENT / PR #3
+Phase 4 — Isolated analysis worker + SBOM        BLOCKED ON PHASE 3 ACCEPTANCE
 ```
 
 Foundation v0.1 is merged and verified on `main`.
 
-Phase 2 acceptance proves tenant-safe Product / Repository / Release inventory, full immutable commit identities, idempotent repeated inventory, historical preservation when tags move, real worker execution, 9/9 tests, zero known npm vulnerabilities and a successful Docker build.
+Phase 2 is merged and verified on `main`; its acceptance proves tenant-safe Product / Repository / Release inventory, full immutable commit identities, idempotent repeated inventory, historical preservation when tags move, real worker execution, zero known npm vulnerabilities and a successful Docker build.
+
+Phase 3 is implementing a GitHub App connector with tenant-bound one-time installation state, server-side installation/account verification, repository-scoped short-lived installation tokens, signed/deduplicated webhooks, revocation, explicit repository selection and provider-neutral inventory integration. Production acceptance still requires a real registered GitHub App private-repository E2E; simulated provider tests do not replace that gate.
 
 No later phase may weaken the documented trust boundaries, data-retention rules, authorization model, ES/EN contract, evidence integrity or regulatory workflow semantics without an explicit architecture/documentation update.
