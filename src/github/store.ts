@@ -1,21 +1,25 @@
 import type { Collection, Db, WithId } from 'mongodb';
 import type {
   GitHubInstallationDocument,
+  GitHubInstallSetupDocument,
   GitHubSelectedRepository,
   GitHubWebhookDeliveryDocument
 } from './types.js';
 
 export const GITHUB_INSTALLATIONS_COLLECTION = 'product_security_github_installations';
+export const GITHUB_INSTALL_SETUPS_COLLECTION = 'product_security_github_install_setups';
 export const GITHUB_WEBHOOK_DELIVERIES_COLLECTION = 'product_security_github_webhook_deliveries';
 
 export interface GitHubCollections {
   installations: Collection<GitHubInstallationDocument>;
+  setups: Collection<GitHubInstallSetupDocument>;
   deliveries: Collection<GitHubWebhookDeliveryDocument>;
 }
 
 export function githubCollections(db: Db): GitHubCollections {
   return {
     installations: db.collection<GitHubInstallationDocument>(GITHUB_INSTALLATIONS_COLLECTION),
+    setups: db.collection<GitHubInstallSetupDocument>(GITHUB_INSTALL_SETUPS_COLLECTION),
     deliveries: db.collection<GitHubWebhookDeliveryDocument>(GITHUB_WEBHOOK_DELIVERIES_COLLECTION)
   };
 }
@@ -23,6 +27,9 @@ export function githubCollections(db: Db): GitHubCollections {
 export async function ensureGitHubIndexes(collections: GitHubCollections): Promise<void> {
   await collections.installations.createIndex({ installationId: 1 }, { unique: true });
   await collections.installations.createIndex({ organizationId: 1, status: 1, updatedAt: -1 });
+  await collections.setups.createIndex({ stateHash: 1 }, { unique: true });
+  await collections.setups.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+  await collections.setups.createIndex({ organizationId: 1, expiresAt: -1 });
   await collections.deliveries.createIndex({ deliveryId: 1 }, { unique: true });
   await collections.deliveries.createIndex({ organizationId: 1, receivedAt: -1 });
 }
@@ -40,6 +47,53 @@ function normalizeRepository(repository: GitHubSelectedRepository): GitHubSelect
   const fullName = repository.fullName.trim();
   if (!/^[^/\s]+\/[^/\s]+$/.test(fullName)) throw new Error('GitHub fullName must be owner/repository');
   return { repositoryId: repository.repositoryId, fullName };
+}
+
+export async function createGitHubInstallSetup(
+  collection: Collection<GitHubInstallSetupDocument>,
+  input: Omit<GitHubInstallSetupDocument, '_id' | 'consumedAt' | 'installationId'>
+): Promise<void> {
+  await collection.insertOne({
+    stateHash: input.stateHash,
+    organizationId: normalizeOrganizationId(input.organizationId),
+    expectedAccountId: input.expectedAccountId,
+    createdAt: input.createdAt,
+    expiresAt: input.expiresAt
+  });
+}
+
+export async function getPendingGitHubInstallSetup(
+  collection: Collection<GitHubInstallSetupDocument>,
+  stateHash: string,
+  now = new Date()
+): Promise<WithId<GitHubInstallSetupDocument> | null> {
+  return collection.findOne({
+    stateHash,
+    consumedAt: { $exists: false },
+    expiresAt: { $gt: now }
+  });
+}
+
+export async function consumeGitHubInstallSetup(
+  collection: Collection<GitHubInstallSetupDocument>,
+  stateHash: string,
+  installationId: number,
+  now = new Date()
+): Promise<WithId<GitHubInstallSetupDocument> | null> {
+  return collection.findOneAndUpdate(
+    {
+      stateHash,
+      consumedAt: { $exists: false },
+      expiresAt: { $gt: now }
+    },
+    {
+      $set: {
+        consumedAt: now,
+        installationId
+      }
+    },
+    { returnDocument: 'after' }
+  );
 }
 
 export async function registerGitHubInstallation(
