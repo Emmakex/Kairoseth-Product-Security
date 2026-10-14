@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { verifyGitHubWebhookSignature } from './crypto.js';
 import {
   getActiveGitHubInstallationByProviderId,
+  getGitHubWebhookDelivery,
   recordGitHubWebhookDelivery,
   revokeGitHubInstallation,
   setGitHubSelectedRepositories,
@@ -57,6 +58,16 @@ export async function processGitHubWebhook(input: {
 
   const deliveryId = normalizeHeader(input.deliveryId, 'X-GitHub-Delivery');
   const event = normalizeHeader(input.event, 'X-GitHub-Event');
+  const duplicate = await getGitHubWebhookDelivery(input.collections.deliveries, deliveryId);
+  if (duplicate) {
+    return {
+      status: 'duplicate',
+      organizationId: duplicate.organizationId,
+      installationId: duplicate.installationId,
+      event: duplicate.event
+    };
+  }
+
   const bodyText = Buffer.isBuffer(input.body) ? input.body.toString('utf8') : input.body;
   const payload = webhookSchema.parse(JSON.parse(bodyText) as unknown);
   const installationId = payload.installation.id;
@@ -77,11 +88,13 @@ export async function processGitHubWebhook(input: {
   });
 
   if (!recorded) {
+    const concurrentDuplicate = await getGitHubWebhookDelivery(input.collections.deliveries, deliveryId);
+    if (!concurrentDuplicate) throw new Error('GitHub webhook delivery deduplication failed');
     return {
       status: 'duplicate',
-      organizationId: installation.organizationId,
-      installationId,
-      event
+      organizationId: concurrentDuplicate.organizationId,
+      installationId: concurrentDuplicate.installationId,
+      event: concurrentDuplicate.event
     };
   }
 
