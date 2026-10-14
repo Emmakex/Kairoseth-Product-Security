@@ -9,9 +9,7 @@ const positiveIntegerFromJson = z.union([
   z.string().regex(/^\d+$/).transform((value) => Number(value))
 ]).refine((value) => Number.isSafeInteger(value) && value > 0, 'Expected a positive safe integer');
 
-const setupBodySchema = z.object({
-  expectedAccountId: positiveIntegerFromJson
-}).strict();
+const setupBodySchema = z.object({}).strict();
 
 const completeBodySchema = z.object({
   state: z.string().min(20).max(512),
@@ -38,6 +36,13 @@ function assertClaims(claims: ProductSecurityServiceClaims): void {
   }
 }
 
+function requireGitHubUserId(claims: ProductSecurityServiceClaims): string {
+  if (!claims.githubUserId) {
+    throw new Error('Product Security service claims are missing verified GitHub user identity');
+  }
+  return claims.githubUserId;
+}
+
 export async function createInternalGitHubInstallSetup(input: {
   claims: ProductSecurityServiceClaims;
   body: unknown;
@@ -46,11 +51,12 @@ export async function createInternalGitHubInstallSetup(input: {
   now?: Date;
 }): Promise<GitHubInstallSetupResponse> {
   assertClaims(input.claims);
-  const body = setupBodySchema.parse(input.body);
+  setupBodySchema.parse(input.body);
+  const githubUserId = requireGitHubUserId(input.claims);
   const ticket = await issueGitHubInstallSetup({
     collections: input.collections,
     organizationId: input.claims.organizationId,
-    expectedAccountId: body.expectedAccountId,
+    expectedInstallerUserId: githubUserId,
     ...(input.now ? { now: input.now } : {})
   });
   return {
@@ -71,12 +77,18 @@ export async function completeInternalGitHubInstall(input: {
 }): Promise<GitHubInstallCompleteResponse> {
   assertClaims(input.claims);
   const body = completeBodySchema.parse(input.body);
+  const githubUserId = requireGitHubUserId(input.claims);
+  if (input.claims.verifiedGitHubInstallationId !== String(body.installationId)) {
+    throw new Error('Product Security service claims do not verify this GitHub installation');
+  }
+
   const now = input.now ?? new Date();
   const installation = await completeGitHubInstallSetup({
     collections: input.collections,
     client: input.client,
     state: body.state,
     installationId: body.installationId,
+    verifiedInstallerUserId: githubUserId,
     now
   });
   if (installation.organizationId !== input.claims.organizationId) {
