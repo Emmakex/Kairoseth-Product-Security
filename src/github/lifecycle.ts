@@ -21,6 +21,17 @@ function normalizeOrganizationId(value: string): string {
   return normalized;
 }
 
+function normalizeGitHubUserId(value: string): string {
+  const normalized = value.trim();
+  if (!/^\d+$/.test(normalized)) {
+    throw githubConnectorError(
+      'invalid_input',
+      'GitHub installer user ID must be a server-verified numeric identifier'
+    );
+  }
+  return normalized;
+}
+
 function stateHash(state: string): string {
   return createHash('sha256').update(state, 'utf8').digest('hex');
 }
@@ -33,17 +44,12 @@ export interface GitHubInstallSetupTicket {
 export async function issueGitHubInstallSetup(input: {
   collections: GitHubCollections;
   organizationId: string;
-  expectedAccountId: number;
+  expectedInstallerUserId: string;
   now?: Date;
   ttlMs?: number;
 }): Promise<GitHubInstallSetupTicket> {
   const organizationId = normalizeOrganizationId(input.organizationId);
-  if (!Number.isSafeInteger(input.expectedAccountId) || input.expectedAccountId <= 0) {
-    throw githubConnectorError(
-      'invalid_input',
-      'expectedAccountId must be a positive GitHub account ID verified server-side'
-    );
-  }
+  const expectedInstallerUserId = normalizeGitHubUserId(input.expectedInstallerUserId);
 
   const ttlMs = input.ttlMs ?? DEFAULT_SETUP_TTL_MS;
   if (!Number.isSafeInteger(ttlMs) || ttlMs < MIN_SETUP_TTL_MS || ttlMs > MAX_SETUP_TTL_MS) {
@@ -57,7 +63,7 @@ export async function issueGitHubInstallSetup(input: {
   await createGitHubInstallSetup(input.collections.setups, {
     stateHash: stateHash(state),
     organizationId,
-    expectedAccountId: input.expectedAccountId,
+    expectedInstallerUserId,
     createdAt: now,
     expiresAt
   });
@@ -81,6 +87,7 @@ export async function completeGitHubInstallSetup(input: {
   client: Pick<GitHubAppClient, 'getInstallation'>;
   state: string;
   installationId: number;
+  verifiedInstallerUserId: string;
   now?: Date;
 }): Promise<WithId<GitHubInstallationDocument>> {
   const normalizedState = input.state.trim();
@@ -88,6 +95,7 @@ export async function completeGitHubInstallSetup(input: {
   if (!Number.isSafeInteger(input.installationId) || input.installationId <= 0) {
     throw githubConnectorError('invalid_input', 'GitHub installationId must be a positive integer');
   }
+  const verifiedInstallerUserId = normalizeGitHubUserId(input.verifiedInstallerUserId);
 
   const now = input.now ?? new Date();
   const hash = stateHash(normalizedState);
@@ -98,6 +106,12 @@ export async function completeGitHubInstallSetup(input: {
       'GitHub install setup state is invalid, expired or already consumed'
     );
   }
+  if (setup.expectedInstallerUserId !== verifiedInstallerUserId) {
+    throw githubConnectorError(
+      'installation_account_mismatch',
+      'GitHub installer identity does not match the server-verified setup identity'
+    );
+  }
 
   const installation = await input.client.getInstallation(input.installationId);
   if (installation.installationId !== input.installationId) {
@@ -105,12 +119,6 @@ export async function completeGitHubInstallSetup(input: {
   }
   if (installation.suspended) {
     throw githubConnectorError('installation_suspended', 'Suspended GitHub installation cannot be connected');
-  }
-  if (installation.accountId !== setup.expectedAccountId) {
-    throw githubConnectorError(
-      'installation_account_mismatch',
-      'GitHub installation account does not match the server-verified setup account'
-    );
   }
 
   const consumed = await consumeGitHubInstallSetup(
