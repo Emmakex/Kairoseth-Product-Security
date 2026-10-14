@@ -20,6 +20,17 @@ export interface GitHubInstallationDocument {
   revokedAt?: Date;
 }
 
+export interface GitHubInstallSetupDocument {
+  _id?: ObjectId;
+  stateHash: string;
+  organizationId: string;
+  expectedAccountId: number;
+  createdAt: Date;
+  expiresAt: Date;
+  consumedAt?: Date;
+  installationId?: number;
+}
+
 export interface GitHubWebhookDeliveryDocument {
   _id?: ObjectId;
   deliveryId: string;
