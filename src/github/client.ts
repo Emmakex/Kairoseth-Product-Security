@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { createGitHubAppJwt } from './crypto.js';
+import { githubConnectorError } from './errors.js';
 import type { GitHubInstallationToken, GitHubRepositoryDescriptor } from './types.js';
 
 export type GitHubFetch = (input: string | URL, init?: RequestInit) => Promise<Response>;
@@ -50,6 +51,14 @@ async function readJson(response: Response): Promise<unknown> {
   return response.json();
 }
 
+function parseProviderPayload<T>(schema: z.ZodType<T>, value: unknown, context: string): T {
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) {
+    throw githubConnectorError('provider_payload_invalid', `Invalid GitHub ${context} payload`);
+  }
+  return parsed.data;
+}
+
 export class GitHubAppClient {
   private readonly fetchImpl: GitHubFetch;
   private readonly apiBaseUrl: string;
@@ -83,15 +92,20 @@ export class GitHubAppClient {
 
   async getInstallation(installationId: number): Promise<GitHubInstallationDescriptor> {
     if (!Number.isSafeInteger(installationId) || installationId <= 0) {
-      throw new Error('GitHub installationId must be a positive integer');
+      throw githubConnectorError('invalid_input', 'GitHub installationId must be a positive integer');
     }
 
     const response = await this.fetchImpl(`${this.apiBaseUrl}/app/installations/${installationId}`, {
       headers: this.headers(this.appAuthorization())
     });
-    if (!response.ok) throw new Error(`GitHub installation lookup failed with HTTP ${response.status}`);
+    if (!response.ok) {
+      throw githubConnectorError(
+        'provider_http_failure',
+        `GitHub installation lookup failed with HTTP ${response.status}`
+      );
+    }
 
-    const payload = installationSchema.parse(await readJson(response));
+    const payload = parseProviderPayload(installationSchema, await readJson(response), 'installation');
     return {
       installationId: payload.id,
       accountId: payload.account.id,
@@ -106,11 +120,13 @@ export class GitHubAppClient {
     repositoryIds: readonly number[]
   ): Promise<GitHubInstallationToken> {
     if (!Number.isSafeInteger(installationId) || installationId <= 0) {
-      throw new Error('GitHub installationId must be a positive integer');
+      throw githubConnectorError('invalid_input', 'GitHub installationId must be a positive integer');
     }
-    if (repositoryIds.length === 0) throw new Error('At least one selected GitHub repository is required');
+    if (repositoryIds.length === 0) {
+      throw githubConnectorError('invalid_input', 'At least one selected GitHub repository is required');
+    }
     if (repositoryIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
-      throw new Error('GitHub repository IDs must be positive integers');
+      throw githubConnectorError('invalid_input', 'GitHub repository IDs must be positive integers');
     }
 
     const response = await this.fetchImpl(
@@ -126,10 +142,13 @@ export class GitHubAppClient {
     );
 
     if (!response.ok) {
-      throw new Error(`GitHub installation token request failed with HTTP ${response.status}`);
+      throw githubConnectorError(
+        'provider_http_failure',
+        `GitHub installation token request failed with HTTP ${response.status}`
+      );
     }
 
-    const payload = tokenResponseSchema.parse(await readJson(response));
+    const payload = parseProviderPayload(tokenResponseSchema, await readJson(response), 'installation token');
     return { token: payload.token, expiresAt: new Date(payload.expires_at) };
   }
 
@@ -137,9 +156,14 @@ export class GitHubAppClient {
     const response = await this.fetchImpl(`${this.apiBaseUrl}/repositories/${repositoryId}`, {
       headers: this.headers(`Bearer ${token}`)
     });
-    if (!response.ok) throw new Error(`GitHub repository lookup failed with HTTP ${response.status}`);
+    if (!response.ok) {
+      throw githubConnectorError(
+        'provider_http_failure',
+        `GitHub repository lookup failed with HTTP ${response.status}`
+      );
+    }
 
-    const payload = repositorySchema.parse(await readJson(response));
+    const payload = parseProviderPayload(repositorySchema, await readJson(response), 'repository');
     return {
       repositoryId: payload.id,
       fullName: payload.full_name,
@@ -148,7 +172,9 @@ export class GitHubAppClient {
   }
 
   async listTags(token: string, fullName: string): Promise<readonly GitHubTagDescriptor[]> {
-    if (!/^[^/\s]+\/[^/\s]+$/.test(fullName)) throw new Error('GitHub fullName must be owner/repository');
+    if (!/^[^/\s]+\/[^/\s]+$/.test(fullName)) {
+      throw githubConnectorError('invalid_input', 'GitHub fullName must be owner/repository');
+    }
     const encodedPath = fullName.split('/').map(encodeURIComponent).join('/');
     const tags: GitHubTagDescriptor[] = [];
 
@@ -157,12 +183,22 @@ export class GitHubAppClient {
         `${this.apiBaseUrl}/repos/${encodedPath}/tags?per_page=100&page=${page}`,
         { headers: this.headers(`Bearer ${token}`) }
       );
-      if (!response.ok) throw new Error(`GitHub tag listing failed with HTTP ${response.status}`);
+      if (!response.ok) {
+        throw githubConnectorError(
+          'provider_http_failure',
+          `GitHub tag listing failed with HTTP ${response.status}`
+        );
+      }
 
-      const payload = z.array(tagSchema).parse(await readJson(response));
+      const payload = parseProviderPayload(z.array(tagSchema), await readJson(response), 'tag list');
       for (const tag of payload) tags.push({ name: tag.name, commitSha: tag.commit.sha.toLowerCase() });
       if (payload.length < 100) break;
-      if (page === 10) throw new Error('GitHub tag inventory exceeded the bounded 1000-tag Phase 3 limit');
+      if (page === 10) {
+        throw githubConnectorError(
+          'tag_inventory_bound_exceeded',
+          'GitHub tag inventory exceeded the bounded 1000-tag Phase 3 limit'
+        );
+      }
     }
 
     return tags;
