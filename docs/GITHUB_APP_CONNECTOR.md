@@ -199,6 +199,7 @@ Inbound webhook processing order is security-significant:
 raw request body
 → verify X-Hub-Signature-256 with HMAC SHA-256
 → validate required delivery/event headers
+→ SHA-256 raw body
 → check delivery deduplication
 → parse JSON as untrusted data
 → resolve active installation server-side
@@ -212,9 +213,11 @@ An invalid signature creates no delivery record and performs no connector mutati
 
 ## Delivery deduplication
 
-`X-GitHub-Delivery` is persisted under a unique index.
+`X-GitHub-Delivery` is persisted under a unique index together with the event name and SHA-256 of the accepted raw payload.
 
-Exact signed replays are safe even after an installation has been revoked: if the delivery was already accepted, Product Security can return `duplicate` from the stored delivery metadata without requiring the installation to remain active.
+Exact signed replays are safe even after an installation has been revoked: if the delivery was already accepted and both event + payload hash match, Product Security returns `duplicate` from stored delivery metadata without requiring the installation to remain active.
+
+Reusing the same delivery ID with a different event or payload is rejected as `webhook_delivery_conflict` even when the new payload has a valid webhook signature.
 
 Concurrent duplicate inserts are resolved through the MongoDB unique index and the already persisted delivery record.
 
@@ -234,23 +237,26 @@ Removed repositories stop being usable for new connector operations. Historical 
 
 ## Failure behavior
 
-Connector failures should be deterministic and non-secret-bearing.
+Connector failures are deterministic and non-secret-bearing. The engine exports `GitHubConnectorError.code` as a stable machine-readable contract.
 
-Internal categories include:
+Current codes:
 
 ```text
+invalid_input
 invalid_webhook_signature
-unknown_or_revoked_installation
+webhook_delivery_conflict
+installation_not_active
 repository_not_selected
 repository_identity_mismatch
+setup_state_invalid
+installation_suspended
 installation_account_mismatch
-expired_or_consumed_setup_state
 provider_http_failure
-provider_payload_validation_failure
+provider_payload_invalid
 tag_inventory_bound_exceeded
 ```
 
-These are internal semantics. Customer-facing Platform copy must map them to ES and EN together and must not expose tokens, private keys, webhook secrets or sensitive provider payloads.
+The English `message` is technical/operator context only. Customer-facing Platform copy maps the stable `code` to Spanish and English and must not expose tokens, private keys, webhook secrets or sensitive provider payloads.
 
 ## ES/EN contract
 
@@ -268,7 +274,7 @@ Repository is no longer selected / El repositorio ya no está seleccionado
 Connection expired or invalid / La conexión ha caducado o no es válida
 ```
 
-The engine must expose stable machine-readable states so Platform translation does not depend on parsing English exception text.
+Platform translation must consume the stable connector error/status contract and must never depend on parsing English exception text.
 
 ## Acceptance boundary
 
@@ -285,8 +291,10 @@ Deterministic CI can prove:
 - token non-persistence;
 - exact repository identity verification;
 - tag/release inventory integration;
-- webhook deduplication;
-- revocation behavior.
+- exact webhook replay deduplication;
+- conflicting delivery rejection;
+- revocation behavior;
+- stable machine-readable error codes.
 
 Production Phase 3 closure additionally requires a registered GitHub App and a real authenticated private-repository E2E proving:
 
