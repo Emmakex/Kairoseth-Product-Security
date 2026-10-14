@@ -74,7 +74,10 @@ suite('GitHub installation lifecycle', () => {
       state: ticket.state,
       installationId: 4321,
       now: new Date(now.getTime() + 20_000)
-    })).rejects.toThrow('invalid, expired or already consumed');
+    })).rejects.toMatchObject({
+      code: 'setup_state_invalid',
+      message: expect.stringContaining('invalid, expired or already consumed')
+    });
   });
 
   it('does not bind an installation for a different GitHub account', async () => {
@@ -98,7 +101,10 @@ suite('GitHub installation lifecycle', () => {
       },
       state: ticket.state,
       installationId: 555
-    })).rejects.toThrow('does not match the server-verified setup account');
+    })).rejects.toMatchObject({
+      code: 'installation_account_mismatch',
+      message: expect.stringContaining('server-verified setup account')
+    });
 
     expect(await collections.installations.countDocuments()).toBe(0);
     expect(await collections.setups.countDocuments({ consumedAt: { $exists: true } })).toBe(0);
@@ -129,6 +135,8 @@ suite('GitHub installation lifecycle', () => {
       state: ticket.state,
       installationId: 777,
       now: new Date(now.getTime() + 60_001)
-    })).rejects.toThrow('invalid, expired or already consumed');
+    })).rejects.toMatchObject({
+      code: 'setup_state_invalid'
+    });
   });
 });
