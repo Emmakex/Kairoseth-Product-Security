@@ -41,7 +41,7 @@ suite('GitHub webhooks', () => {
     await client.close();
   });
 
-  it('verifies signature, updates repository selection and deduplicates delivery IDs', async () => {
+  it('verifies signature, updates repository selection and deduplicates exact delivery replays', async () => {
     const collections = githubCollections(client.db(dbName));
     const body = JSON.stringify({
       action: 'added',
@@ -73,6 +73,33 @@ suite('GitHub webhooks', () => {
     });
     expect(duplicate.status).toBe('duplicate');
     expect(await collections.deliveries.countDocuments({ deliveryId: 'delivery-1' })).toBe(1);
+    expect((await collections.deliveries.findOne({ deliveryId: 'delivery-1' }))?.payloadSha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('rejects a reused delivery ID when the signed payload differs', async () => {
+    const collections = githubCollections(client.db(dbName));
+    const firstBody = JSON.stringify({ installation: { id: 3003 } });
+    await processGitHubWebhook({
+      collections,
+      webhookSecret: secret,
+      body: firstBody,
+      signature: signature(firstBody),
+      deliveryId: 'delivery-conflict',
+      event: 'ping'
+    });
+
+    const conflictingBody = JSON.stringify({
+      action: 'deleted',
+      installation: { id: 3003 }
+    });
+    await expect(processGitHubWebhook({
+      collections,
+      webhookSecret: secret,
+      body: conflictingBody,
+      signature: signature(conflictingBody),
+      deliveryId: 'delivery-conflict',
+      event: 'installation'
+    })).rejects.toThrow('reused with conflicting event or payload');
   });
 
   it('rejects bad signatures before processing', async () => {
