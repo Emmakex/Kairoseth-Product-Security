@@ -27,7 +27,7 @@ export interface GitHubTagDescriptor {
 }
 
 async function readJson(response: Response): Promise<unknown> {
-  return response.json() as Promise<unknown>;
+  return response.json();
 }
 
 export class GitHubAppClient {
