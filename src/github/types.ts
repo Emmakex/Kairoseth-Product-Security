@@ -24,7 +24,7 @@ export interface GitHubInstallSetupDocument {
   _id?: ObjectId;
   stateHash: string;
   organizationId: string;
-  expectedAccountId: number;
+  expectedInstallerUserId: string;
   createdAt: Date;
   expiresAt: Date;
   consumedAt?: Date;
