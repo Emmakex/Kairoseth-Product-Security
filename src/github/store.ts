@@ -40,6 +40,12 @@ function normalizeOrganizationId(value: string): string {
   return normalized;
 }
 
+function normalizeGitHubUserId(value: string): string {
+  const normalized = value.trim();
+  if (!/^\d+$/.test(normalized)) throw new Error('GitHub user ID must contain digits only');
+  return normalized;
+}
+
 function normalizeRepository(repository: GitHubSelectedRepository): GitHubSelectedRepository {
   if (!Number.isSafeInteger(repository.repositoryId) || repository.repositoryId <= 0) {
     throw new Error('GitHub repositoryId must be a positive integer');
@@ -56,7 +62,7 @@ export async function createGitHubInstallSetup(
   await collection.insertOne({
     stateHash: input.stateHash,
     organizationId: normalizeOrganizationId(input.organizationId),
-    expectedAccountId: input.expectedAccountId,
+    expectedInstallerUserId: normalizeGitHubUserId(input.expectedInstallerUserId),
     createdAt: input.createdAt,
     expiresAt: input.expiresAt
   });
