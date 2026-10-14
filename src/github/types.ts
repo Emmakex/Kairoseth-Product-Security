@@ -35,6 +35,7 @@ export interface GitHubWebhookDeliveryDocument {
   _id?: ObjectId;
   deliveryId: string;
   event: string;
+  payloadSha256: string;
   installationId: number;
   organizationId: string;
   receivedAt: Date;
