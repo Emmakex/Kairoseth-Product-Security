@@ -49,6 +49,12 @@ export type {
 } from './github/client.js';
 export { createGitHubAppJwt, verifyGitHubWebhookSignature } from './github/crypto.js';
 export {
+  GitHubConnectorError,
+  githubConnectorError,
+  isGitHubConnectorError
+} from './github/errors.js';
+export type { GitHubConnectorErrorCode } from './github/errors.js';
+export {
   buildGitHubInstallationUrl,
   completeGitHubInstallSetup,
   issueGitHubInstallSetup
