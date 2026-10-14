@@ -1,7 +1,7 @@
 import type { Collection } from 'mongodb';
 import type { RepositoryAdapter } from '../inventory/provider.js';
 import type { ReleaseSnapshot, RepositorySnapshot } from '../inventory/types.js';
-import { GitHubAppClient } from './client.js';
+import type { GitHubAppClient } from './client.js';
 import { getActiveGitHubInstallation } from './store.js';
 import type { GitHubInstallationDocument, GitHubInstallationToken } from './types.js';
 
