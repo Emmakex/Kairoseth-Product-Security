@@ -1,4 +1,5 @@
-export { envSchema, loadEnv } from './config/env.js';
+export { envSchema, loadEnv, requireGitHubAppEnv, requireInternalApiEnv } from './config/env.js';
+export type { AppEnv, GitHubAppEnv, InternalApiEnv } from './config/env.js';
 export { connectMongo } from './db/mongo.js';
 export { createLogger } from './logger.js';
 export { buildLeaseFilter, completeJob, failJob, leaseNextJob } from './jobs/lease.js';
@@ -37,3 +38,76 @@ export type {
   RepositoryProvider,
   RepositorySnapshot
 } from './inventory/types.js';
+
+export { GitHubRepositoryAdapter } from './github/adapter.js';
+export type { GitHubRepositoryInput } from './github/adapter.js';
+export { GitHubAppClient } from './github/client.js';
+export type {
+  GitHubFetch,
+  GitHubInstallationDescriptor,
+  GitHubTagDescriptor
+} from './github/client.js';
+export { createGitHubAppJwt, verifyGitHubWebhookSignature } from './github/crypto.js';
+export {
+  GitHubConnectorError,
+  githubConnectorError,
+  isGitHubConnectorError
+} from './github/errors.js';
+export type { GitHubConnectorErrorCode } from './github/errors.js';
+export {
+  buildGitHubInstallationUrl,
+  completeGitHubInstallSetup,
+  issueGitHubInstallSetup
+} from './github/lifecycle.js';
+export type { GitHubInstallSetupTicket } from './github/lifecycle.js';
+export {
+  consumeGitHubInstallSetup,
+  createGitHubInstallSetup,
+  ensureGitHubIndexes,
+  getActiveGitHubInstallation,
+  getActiveGitHubInstallationByProviderId,
+  getGitHubWebhookDelivery,
+  getPendingGitHubInstallSetup,
+  githubCollections,
+  GITHUB_INSTALLATIONS_COLLECTION,
+  GITHUB_INSTALL_SETUPS_COLLECTION,
+  GITHUB_WEBHOOK_DELIVERIES_COLLECTION,
+  recordGitHubWebhookDelivery,
+  registerGitHubInstallation,
+  revokeGitHubInstallation,
+  setGitHubSelectedRepositories
+} from './github/store.js';
+export type { GitHubCollections } from './github/store.js';
+export type {
+  GitHubInstallationDocument,
+  GitHubInstallationStatus,
+  GitHubInstallationToken,
+  GitHubInstallSetupDocument,
+  GitHubRepositoryDescriptor,
+  GitHubSelectedRepository,
+  GitHubWebhookDeliveryDocument
+} from './github/types.js';
+export { processGitHubWebhook } from './github/webhook.js';
+export type { GitHubWebhookProcessResult } from './github/webhook.js';
+
+export {
+  completeInternalGitHubInstall,
+  createInternalGitHubInstallSetup
+} from './internal/github-install.js';
+export type {
+  GitHubInstallCompleteResponse,
+  GitHubInstallSetupResponse
+} from './internal/github-install.js';
+export {
+  bearerTokenFromAuthorizationHeader,
+  KAIROSETH_PLATFORM_ISSUER,
+  PRODUCT_SECURITY_SERVICE_AUDIENCE,
+  ProductSecurityServiceAuthError,
+  serviceScopeSchema,
+  signProductSecurityServiceToken,
+  verifyProductSecurityServiceToken
+} from './internal/service-auth.js';
+export type {
+  ProductSecurityServiceClaims,
+  ProductSecurityServiceScope
+} from './internal/service-auth.js';

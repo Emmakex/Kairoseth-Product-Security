@@ -15,17 +15,20 @@ This directory contains the canonical product, architecture, security and delive
 - [`FOUNDATION_V0_1_ACCEPTANCE.md`](FOUNDATION_V0_1_ACCEPTANCE.md) — Phase 1 runtime, CI, worker E2E, dependency-security and ES/EN acceptance evidence.
 - [`PHASE2_INVENTORY.md`](PHASE2_INVENTORY.md) — Product / Repository / Release inventory contract.
 - [`PHASE2_INVENTORY_ACCEPTANCE.md`](PHASE2_INVENTORY_ACCEPTANCE.md) — Phase 2 tenant, idempotency, immutable release identity, worker E2E and CI acceptance evidence.
+- [`GITHUB_APP_CONNECTOR.md`](GITHUB_APP_CONNECTOR.md) — Phase 3 GitHub App permissions, secure install lifecycle, short-lived credentials, webhooks, tenant binding and ES/EN contract.
+- [`PHASE3_GITHUB_APP_ACCEPTANCE.md`](PHASE3_GITHUB_APP_ACCEPTANCE.md) — Phase 3 deterministic security/CI acceptance evidence and the remaining real GitHub App E2E production gate.
 
 ## Current delivery state
 
 ```text
 Phase 0 — Documentation / architecture baseline   COMPLETE
 Phase 1 — Foundation v0.1                        COMPLETE / MERGED / MAIN VERIFIED
-Phase 2 — Product / Repository / Release         ACCEPTED / MERGE PENDING
-Phase 3 — GitHub App connector                   NEXT AFTER MAIN VERIFICATION
+Phase 2 — Product / Repository / Release         COMPLETE / MERGED / MAIN VERIFIED
+Phase 3 — GitHub App connector                   DETERMINISTIC ACCEPTED / REAL E2E PENDING / PR #3
+Phase 4 — Isolated analysis worker + SBOM        BLOCKED ON PHASE 3 PRODUCTION ACCEPTANCE
 ```
 
-Phase 3 must not begin until the Phase 2 merge is verified by green CI on `main`.
+Phase 3 deterministic implementation is accepted by CI run #70. Production acceptance still requires a real registered GitHub App and authenticated private-repository E2E proving the full tenant-binding and revocation path.
 
 ## Documentation authority
 
