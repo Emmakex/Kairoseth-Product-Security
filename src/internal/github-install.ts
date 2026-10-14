@@ -82,6 +82,11 @@ export async function completeInternalGitHubInstall(input: {
   if (installation.organizationId !== input.claims.organizationId) {
     throw new Error('GitHub installation setup resolved to a different organization');
   }
+  if (!installation.accountId || !installation.accountLogin) {
+    throw new Error('Verified GitHub installation account identity is missing');
+  }
+  const accountId = installation.accountId;
+  const accountLogin = installation.accountLogin;
 
   // This bootstrap token is never persisted. GitHub limits it to the repositories
   // granted to the installation. It exists only long enough to discover the exact
@@ -100,8 +105,8 @@ export async function completeInternalGitHubInstall(input: {
   return {
     organizationId: installation.organizationId,
     installationId: installation.installationId,
-    accountId: installation.accountId,
-    accountLogin: installation.accountLogin,
+    accountId,
+    accountLogin,
     selectedRepositoryCount: repositories.length,
     status: 'active'
   };
