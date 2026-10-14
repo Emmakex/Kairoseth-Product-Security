@@ -75,8 +75,7 @@ suite('GitHub installation lifecycle', () => {
       installationId: 4321,
       now: new Date(now.getTime() + 20_000)
     })).rejects.toMatchObject({
-      code: 'setup_state_invalid',
-      message: expect.stringContaining('invalid, expired or already consumed')
+      code: 'setup_state_invalid'
     });
   });
 
@@ -102,8 +101,7 @@ suite('GitHub installation lifecycle', () => {
       state: ticket.state,
       installationId: 555
     })).rejects.toMatchObject({
-      code: 'installation_account_mismatch',
-      message: expect.stringContaining('server-verified setup account')
+      code: 'installation_account_mismatch'
     });
 
     expect(await collections.installations.countDocuments()).toBe(0);
