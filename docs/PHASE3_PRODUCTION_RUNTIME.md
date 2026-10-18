@@ -11,15 +11,18 @@ Phase 3 is **not accepted for production** until the real GitHub App E2E describ
 Use the existing Kairoseth infrastructure and one Product Security image with two process roles:
 
 ```text
-Kairoseth Platform
-  https://kairoseth.com
+Internet / GitHub
         |
-        | HTTPS + short-lived scoped service token
+        v
+Kairoseth Shared Edge (Caddy)
+  product-security-runtime.kairoseth.com
+        |
+        | kairoseth-public-edge
         v
 Product Security API
-  node dist/src/server.js
+  node dist/src/server.js :8787
         |\
-        | \--> /webhooks/github  <-- GitHub App webhook
+        | \--> /webhooks/github
         |
         +----> MongoDB Atlas
 
@@ -27,25 +30,39 @@ Product Security Worker
   node dist/src/worker.js
         |
         +----> MongoDB Atlas
+
+Kairoseth Platform
+  https://kairoseth.com
+        |
+        | HTTPS + short-lived scoped service token
+        +----> shared edge ----> Product Security API
 ```
 
 The API and worker are separate processes of the **same image**. This is not a second application platform and does not introduce PostgreSQL, Redis, Neo4j or Kubernetes.
 
-The versioned example is `deploy/docker-compose.production.example.yml`.
+The versioned Product Security Compose contract is `deploy/docker-compose.production.example.yml`. The shared public ingress is owned by the Kairoseth Platform infrastructure and is not owned by Product Security or IA Empleado.
 
 ## Runtime origin
 
-Recommended production origin:
+Production origin:
 
 ```text
 https://product-security-runtime.kairoseth.com
 ```
 
-The example Nginx contract is `deploy/nginx-product-security.conf.example`.
+DNS must point this hostname to the Kairoseth OVH runtime host. TLS is terminated by the shared Kairoseth Caddy edge.
 
-This hostname is a deployment convention only; DNS and TLS must exist before the real E2E. The Node service itself remains bound to the host loopback through Docker Compose and is exposed only through the reverse proxy.
+Product Security does **not** publish a host port. `product-security-api` joins the external Docker network `kairoseth-public-edge` with port `8787` exposed only inside Docker. The worker remains off the public edge network.
 
-If a private service origin between Platform and Product Security is available later, `PRODUCT_SECURITY_INTERNAL_URL` may use it. The GitHub webhook still requires a publicly reachable HTTPS URL.
+The shared edge exposes only:
+
+```text
+GET/HEAD /healthz
+POST     /webhooks/github
+*        /internal/product-security/v1/*
+```
+
+All other Product Security paths return `404` at the edge.
 
 ## Required Product Security runtime environment
 
@@ -126,12 +143,21 @@ Install only on selected repositories during the production acceptance test.
 
 ## Deploy
 
-From the repository root on the runtime host:
+The shared Docker edge network must exist before this Compose stack starts:
+
+```bash
+sudo docker network inspect kairoseth-public-edge >/dev/null 2>&1 || \
+  sudo docker network create kairoseth-public-edge
+```
+
+From the Product Security repository root on the runtime host:
 
 ```bash
 docker compose -f deploy/docker-compose.production.example.yml build
 docker compose -f deploy/docker-compose.production.example.yml up -d
 ```
+
+The shared Kairoseth edge must contain the versioned `product-security-runtime.kairoseth.com` route and be attached to `kairoseth-public-edge`.
 
 Acceptance preflight:
 
