@@ -11,8 +11,8 @@ services:
     environment:
       PRODUCT_SECURITY_API_HOST: 0.0.0.0
       PRODUCT_SECURITY_API_PORT: 8787
-    ports:
-      - "127.0.0.1:${PRODUCT_SECURITY_HOST_PORT:-8787}:8787"
+    expose:
+      - "8787"
     healthcheck:
       test:
         [
@@ -25,6 +25,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    networks:
+      product-security-internal: {}
+      public-edge:
+        aliases:
+          - product-security-api
 
   product-security-worker:
     build:
@@ -38,3 +43,12 @@ services:
     depends_on:
       product-security-api:
         condition: service_healthy
+    networks:
+      - product-security-internal
+
+networks:
+  product-security-internal:
+    name: kairoseth-product-security-internal
+  public-edge:
+    name: kairoseth-public-edge
+    external: true
